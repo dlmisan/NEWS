@@ -2,13 +2,18 @@ name: Daily Podcast Pipeline
 
 on:
   schedule:
-    # 每天北京时间早 05:00 (UTC 21:00 前一天)
-    - cron: '0 21 * * *'
-    # 每天北京时间晚 17:00 (UTC 09:00 当天)
-    - cron: '0 9 * * *'
+    # 每天北京时间早 04:45 (UTC 21:00) - 建议错开整点高峰，改为 20:45
+    - cron: '45 20 * * *'
+    # 每天北京时间晚 17:15 (UTC 09:00) - 建议错开整点高峰，改为 09:15
+    - cron: '15 9 * * *'
 
   # 支持随时手动点击运行
   workflow_dispatch:
+
+# 【保险1】并发控制：确保同一时间只有一个流在运行，防止 Git 提交冲突
+concurrency:
+  group: podcast-pipeline
+  cancel-in-progress: false 
 
 permissions:
   contents: write
@@ -22,6 +27,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 确保拉取完整历史，避免 push 报错
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -57,11 +64,12 @@ jobs:
           publish_dir: ./public
           keep_files: true
 
-      # 关键步骤：自动保存去重历史记录，防止下次重复播报
       - name: Save News Deduplication History
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add history_ids.txt
           git commit -m "Update news deduplication history [skip ci]" || echo "No history changes to commit"
+          # 【保险2】提交前先拉取远程最新代码，防止运行期间远程仓库有变动导致 push 失败
+          git pull --rebase origin main
           git push origin main
