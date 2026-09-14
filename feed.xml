@@ -4,13 +4,13 @@
     <title>每日国际要闻速递</title>
     <link>https://github.com</link>
     <language>zh-cn</language>
-    <description>每日早晚自动汇总全球多源热点 10 条新闻，AI 自动语义去重与配音播报。</description>
+    <description>每日早晚自动汇总全球多源热点 30 条新闻，AI 自动语义去重与配音播报。</description>
     <item>
-      <title>国际要闻晚报 (2026-09-14 14:08)</title>
+      <title>国际要闻晚报 (2026-09-14 14:39)</title>
       <description>今日聚合全球权威要闻 10 大热点口播摘要（已完成智能语义去重与多源融合）。</description>
-      <pubDate>Mon, 14 Sep 2026 06:09:43 +0000</pubDate>
-      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20260914-1408/news-20260914-1408.mp3" length="3107664" type="audio/mpeg"/>
-      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20260914-1408/news-20260914-1408.mp3</guid>
+      <pubDate>Mon, 14 Sep 2026 06:40:24 +0000</pubDate>
+      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20260914-1439/news-20260914-1439.mp3" length="3850416" type="audio/mpeg"/>
+      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20260914-1439/news-20260914-1439.mp3</guid>
     </item>
   </channel>
 </rss>
