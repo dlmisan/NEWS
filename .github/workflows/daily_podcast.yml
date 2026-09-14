@@ -7,7 +7,7 @@ on:
     # 每天北京时间晚 17:00 (UTC 09:00 当天)
     - cron: '0 9 * * *'
 
-  # 支持在 GitHub 网页或手机端随时点按手动运行
+  # 支持随时手动点击运行
   workflow_dispatch:
 
 permissions:
@@ -56,3 +56,12 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
           keep_files: true
+
+      # 关键步骤：自动保存去重历史记录，防止下次重复播报
+      - name: Save News Deduplication History
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add history_ids.txt
+          git commit -m "Update news deduplication history [skip ci]" || echo "No history changes to commit"
+          git push origin main
