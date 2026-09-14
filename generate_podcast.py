@@ -53,17 +53,20 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 def load_history():
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            return set(line.strip() for line in f if line.strip())
-    return set()
+            return [line.strip() for line in f if line.strip()]
+    return []
 
-def save_history(history_set):
-    recent_history = list(history_set)[-200:]
+def save_history(new_ids, max_records=300):
+    history = load_history()
+    combined = history + list(new_ids)
+    recent_history = combined[-max_records:]
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(recent_history))
 
 # 扩大抓取池到 60 条，确保筛选 30 条独立事件时素材充足
 def fetch_candidate_news(candidate_limit=60):
-    history = load_history()
+    history_list = load_history()
+    history_set = set(history_list)
     source_buckets = {}
 
     print(f"正在从 {len(NEWS_SOURCES)} 个媒体源收集候选资讯...")
@@ -72,11 +75,13 @@ def fetch_candidate_news(candidate_limit=60):
         name = src["name"]
         url = src["url"]
         try:
-            feed = feedparser.parse(url)
+            resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=15)
+            resp.raise_for_status()
+            feed = feedparser.parse(resp.content)
             valid_entries = []
             for entry in feed.entries:
                 entry_id = getattr(entry, 'id', entry.link)
-                if entry_id not in history:
+                if entry_id not in history_set:
                     valid_entries.append((entry, entry_id, name))
             source_buckets[name] = valid_entries
             print(f"  - [{name}] 抓取到 {len(valid_entries)} 条候选资讯")
@@ -85,7 +90,7 @@ def fetch_candidate_news(candidate_limit=60):
             source_buckets[name] = []
 
     candidates = []
-    new_ids = set()
+    new_ids = []
     max_loops = max([len(v) for v in source_buckets.values()], default=0)
 
     for i in range(max_loops):
@@ -96,17 +101,14 @@ def fetch_candidate_news(candidate_limit=60):
                     title = entry.title
                     summary = entry.summary if hasattr(entry, 'summary') else ""
                     candidates.append(f"【来源：{media_name}】 标题: {title}\n摘要: {summary}\n")
-                    new_ids.add(entry_id)
+                    new_ids.append(entry_id)
                     if len(candidates) >= candidate_limit:
                         break
         if len(candidates) >= candidate_limit:
             break
 
-    history.update(new_ids)
-    save_history(history)
-    
     print(f"总计收集到 {len(candidates)} 条候选素材，准备交由大模型提炼...")
-    return "\n".join(candidates)
+    return "\n".join(candidates), new_ids
 
 def rewrite_with_gemini(raw_news, api_key, period_name):
     print(f"正在生成【{period_name}】客观口播稿...")
@@ -140,7 +142,7 @@ def rewrite_with_gemini(raw_news, api_key, period_name):
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+    response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=60)
     data = response.json()
     try:
         return data['candidates'][0]['content']['parts'][0]['text']
@@ -215,7 +217,7 @@ async def main():
         f.write(audio_filename)
 
     # 1. 抓取候选池（扩大至 60 条候选）
-    raw_news = fetch_candidate_news(candidate_limit=60)
+    raw_news, new_ids = fetch_candidate_news(candidate_limit=60)
     
     # 2. 改写为 30 条纯客观事实播报稿（去转场、带来源、无当前时间）
     broadcast_script = rewrite_with_gemini(raw_news, api_key, period_name)
@@ -227,6 +229,9 @@ async def main():
     file_size = os.path.getsize(audio_filename)
     audio_url = f"https://github.com/{repo}/releases/download/{tag}/{audio_filename}"
     update_podcast_feed(audio_url, file_size, episode_title)
+
+    # 5. 全流程无异常后，持久化更新历史记录
+    save_history(new_ids)
     print("本期 30 条要闻播客制作完成！")
 
 if __name__ == "__main__":
