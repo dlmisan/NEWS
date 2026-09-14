@@ -4,6 +4,7 @@ import email.utils
 import json
 import os
 import re
+import time  # 【新增】导入时间模块，用于重试时的等待
 import feedparser
 import requests
 import edge_tts
@@ -113,7 +114,7 @@ def fetch_candidate_news(candidate_limit=60):
     return "\n".join(candidates)
 
 
-def rewrite_with_gemini(raw_news, api_key, period_name):
+def rewrite_with_gemini(raw_news, api_key, period_name, max_retries=3):
     print(f"正在生成【{period_name}】客观口播稿...")
     prompt = f"""
 你是一位严谨、专业的国家级新闻广播电台播音员。
@@ -146,13 +147,35 @@ def rewrite_with_gemini(raw_news, api_key, period_name):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    # 【修复2】加入 timeout=30 控制，防止请求 API 时一直挂起，耗尽 Action 运行时长
-    response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=240)
-    data = response.json()
-    try:
-        return data["candidates"][0]["content"]["parts"][0]["text"]
-    except Exception as e:
-        raise RuntimeError(f"Gemini API 响应异常: {data}") from e
+    # 【新增】自动重试循环
+    for attempt in range(max_retries):
+        try:
+            # 保持 timeout=240，防止无响应挂起
+            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=240)
+            data = response.json()
+            
+            # 1. 成功情况：如果顺利拿到 candidates，直接返回结果
+            if "candidates" in data:
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+                
+            # 2. 失败情况A：API 返回了内容，但提示报错（如 503 拥堵）
+            if "error" in data:
+                error_msg = data['error'].get('message', '未知 API 错误')
+                print(f"⚠️ 第 {attempt + 1} 次请求失败: API 报错 - {error_msg}")
+            else:
+                print(f"⚠️ 第 {attempt + 1} 次请求失败: 返回格式异常 - {data}")
+                
+        # 3. 失败情况B：网络连接问题或超时抛出异常
+        except Exception as e:
+            print(f"⚠️ 第 {attempt + 1} 次请求发生网络异常: {e}")
+            
+        # 如果还没到最后一次尝试，就等待 30 秒再试
+        if attempt < max_retries - 1:
+            print(f"⏳ 等待 30 秒后自动进行第 {attempt + 2} 次重试...\n")
+            time.sleep(30)
+            
+    # 如果 3 次全失败了，就抛出致命错误结束程序
+    raise RuntimeError(f"Gemini API 严重拥堵或异常，{max_retries} 次重试后依然失败，请稍后手动运行。")
 
 
 async def text_to_speech(text, output_file):
@@ -227,7 +250,7 @@ async def main():
     # 1. 抓取候选池（扩大至 60 条候选）
     raw_news = fetch_candidate_news(candidate_limit=60)
 
-    # 2. 改写为 30 条纯客观事实播报稿（去转场、带来源、无当前时间）
+    # 2. 改写为 30 条纯客观事实播报稿（带自动重试机制）
     broadcast_script = rewrite_with_gemini(raw_news, api_key, period_name)
 
     # 3. 合成音频
