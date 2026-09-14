@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import asyncio
 import datetime
 import email.utils
@@ -9,62 +10,86 @@ import feedparser
 import edge_tts
 
 # ==========================================
-# 1. 国际多媒体 RSS 源配置
+# 1. 全球 9 大权威多媒体 RSS 信源池配置
 # ==========================================
 NEWS_SOURCES = [
     {
+        "name": "新加坡联合早报",
+        "url": "https://www.zaobao.com.sg/rss/realtime/world"
+    },
+    {
         "name": "英国广播公司 BBC",
         "url": "https://feeds.bbci.co.uk/news/world/rss.xml"
+    },
+    {
+        "name": "半岛电视台 Al Jazeera",
+        "url": "https://www.aljazeera.com/xml/rss/all.xml"
     },
     {
         "name": "德国之声 DW",
         "url": "https://rss.dw.com/rdf/rss-en-world"
     },
     {
+        "name": "法国 24 台 France 24",
+        "url": "https://www.france24.com/en/rss"
+    },
+    {
         "name": "美国国家公共电台 NPR",
         "url": "https://feeds.npr.org/1004/rss.xml"
     },
     {
-        "name": "国际通讯社综合",
+        "name": "联合国新闻 UN News",
+        "url": "https://news.un.org/feed/subscribe/en/news/all/rss.xml"
+    },
+    {
+        "name": "日本广播协会 NHK World",
+        "url": "https://www3.nhk.or.jp/nhkworld/en/news/rss/index.xml"
+    },
+    {
+        "name": "国际通讯社综合 Google News",
         "url": "https://news.google.com/rss/headlines/section/topic/WORLD"
     }
 ]
 
-VOICE = "zh-CN-YunyangNeural"  # 微软 Edge TTS 推荐新闻男声：云杨
+VOICE = "zh-CN-YunxiNeural"  # 微软 Edge TTS 专业新闻男声：云希
 HISTORY_FILE = "history_ids.txt"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
-# 读取历史已播链接
+# 读取历史已播记录
 def load_history():
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE, "r", encoding="utf-8") as f:
             return set(line.strip() for line in f if line.strip())
     return set()
 
-# 保存历史已播记录，保留最近 200 条
+# 保存历史已播记录，保留最近 300 条
 def save_history(history_set):
-    recent_history = list(history_set)[-200:]
+    recent_history = list(history_set)[-300:]
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(recent_history))
 
-# 抓取 50 条候选新闻供大模型筛选
-def fetch_candidate_news(candidate_limit=50):
+# 抓取 60 条候选新闻供大模型筛选
+def fetch_candidate_news(candidate_limit=60):
     history = load_history()
     source_buckets = {}
+    all_raw_entries = []
 
-    print(f"正在从 {len(NEWS_SOURCES)} 个媒体源收集候选资讯...")
+    print(f"正在从 {len(NEWS_SOURCES)} 个国际媒体源收集候选资讯...")
 
     for src in NEWS_SOURCES:
         name = src["name"]
         url = src["url"]
         try:
-            feed = feedparser.parse(url)
+            # 携带浏览器 User-Agent，避免部分媒体（如联合早报）因识别为爬虫而拦截
+            feed = feedparser.parse(url, agent=USER_AGENT)
             valid_entries = []
             for entry in feed.entries:
                 entry_id = getattr(entry, 'id', entry.link)
+                all_raw_entries.append((entry, entry_id, name))
                 if entry_id not in history:
                     valid_entries.append((entry, entry_id, name))
             source_buckets[name] = valid_entries
-            print(f"  - [{name}] 抓取到 {len(valid_entries)} 条可用候选")
+            print(f"  - [{name}] 抓取到 {len(valid_entries)} 条全新候选")
         except Exception as e:
             print(f"  - [{name}] 抓取跳过 (网络或解析异常: {e})")
             source_buckets[name] = []
@@ -73,6 +98,7 @@ def fetch_candidate_news(candidate_limit=50):
     new_ids = set()
     max_loops = max([len(v) for v in source_buckets.values()], default=0)
 
+    # 轮询各媒体抽取新鲜未播新闻
     for i in range(max_loops):
         for name, entries in source_buckets.items():
             if i < len(entries):
@@ -87,10 +113,22 @@ def fetch_candidate_news(candidate_limit=50):
         if len(candidates) >= candidate_limit:
             break
 
+    # 保底机制：若全新新闻不足 30 条（如连续手动测试），放宽历史限制补充最新热点
+    if len(candidates) < 30:
+        print(f"提示：全新资讯仅 {len(candidates)} 条，启动保底机制补足素材...")
+        for entry, entry_id, media_name in all_raw_entries:
+            if entry_id not in new_ids:
+                title = entry.title
+                summary = entry.summary if hasattr(entry, 'summary') else ""
+                candidates.append(f"【媒体来源：{media_name}】 标题: {title}\n摘要: {summary}\n")
+                new_ids.add(entry_id)
+                if len(candidates) >= candidate_limit:
+                    break
+
     history.update(new_ids)
     save_history(history)
     
-    print(f"总计获取 {len(candidates)} 条候选素材，准备由 AI 进行深度提炼...")
+    print(f"总计获取 {len(candidates)} 条多源候选素材，准备交由 AI 深度提炼...")
     return "\n".join(candidates)
 
 # 调用 Gemini 提炼 20 条深度新闻口播稿
@@ -98,7 +136,7 @@ def rewrite_with_gemini(raw_news, api_key, period_name):
     print(f"正在生成【{period_name}】深度新闻口播稿（20 条长篇深度报道）...")
     prompt = f"""
 你是一位严谨、专业的国家级新闻广播电台资深播音员。
-以下是从多家国际权威媒体收集的新闻素材：
+以下是从全球多所国际权威媒体收集的新闻素材：
 
 【核心任务与改写规则】：
 1. 筛选 20 条独立重大要闻：
@@ -112,7 +150,7 @@ def rewrite_with_gemini(raw_news, api_key, period_name):
    - 严厉禁止：严禁加入任何未经证实的推测、主观臆断、形容词修饰或 AI 评论。
 
 3. 规范播报风格：
-   - 必须指明来源：每条新闻开门见山说明消息出处（例如：“据英国广播公司报道……”、“德国之声消息指出……”、“美国国家公共电台报道称……”）。
+   - 必须指明来源：每条新闻开门见山说明消息出处（例如：“据新加坡联合早报报道……”、“英国广播公司报道……”、“半岛电视台消息指出……”、“德国之声报道称……”）。
    - 彻底删除转场词：严禁出现“下一条消息”、“另一项国际动态是”、“下面关注”、“与此同时”等过渡套话，直接逐条以客观事实切入。
    - 开篇与结尾：开篇仅做简短问候（例如：“听众朋友们好，欢迎收听国际要闻{period_name}。”），严禁播报具体的当前时间或日期。结尾简短致谢收尾。
    - 纯文本输出：严禁出现 Markdown 标记（严禁出现 **、# 等符号）、括号、网址。
@@ -131,12 +169,30 @@ def rewrite_with_gemini(raw_news, api_key, period_name):
             "temperature": 0.2
         }
     }
-    response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
-    data = response.json()
-    try:
-        return data['candidates'][0]['content']['parts'][0]['text']
-    except Exception as e:
-        raise RuntimeError(f"Gemini API 响应异常: {data}") from e
+
+    # 应对 503 算力高峰的 3 次重试逻辑
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=120)
+            data = response.json()
+            if "candidates" in data and len(data["candidates"]) > 0:
+                return data['candidates'][0]['content']['parts'][0]['text']
+            
+            error_msg = data.get("error", {}).get("message", str(data))
+            print(f"API 响应异常 (尝试 {attempt}/{max_retries}): {error_msg}")
+            if attempt < max_retries:
+                sleep_time = attempt * 8
+                print(f"等待 {sleep_time} 秒后重试...")
+                time.sleep(sleep_time)
+            else:
+                raise RuntimeError(f"Gemini API 响应异常: {data}")
+        except requests.exceptions.RequestException as req_err:
+            print(f"网络连接异常 (尝试 {attempt}/{max_retries}): {req_err}")
+            if attempt < max_retries:
+                time.sleep(attempt * 8)
+            else:
+                raise
 
 # 语音合成
 async def text_to_speech(text, output_file):
@@ -153,7 +209,7 @@ def update_podcast_feed(audio_url, audio_size, episode_title):
     
     new_item = f"""    <item>
       <title>{episode_title}</title>
-      <description>今日聚合全球权威要闻 20 条深度客观播报。</description>
+      <description>今日聚合全球 9 大权威媒体要闻 20 条深度客观播报。</description>
       <pubDate>{pub_date}</pubDate>
       <enclosure url="{audio_url}" length="{audio_size}" type="audio/mpeg"/>
       <guid>{audio_url}</guid>
@@ -174,7 +230,7 @@ def update_podcast_feed(audio_url, audio_size, episode_title):
     <title>每日国际要闻速递</title>
     <link>https://github.com</link>
     <language>zh-cn</language>
-    <description>每日早晚自动汇总全球权威 20 条深度国际要闻，AI 严谨播报。</description>
+    <description>每日早晚自动汇总全球主流媒体 20 条深度国际要闻，AI 严谨播报。</description>
 {items_block}
   </channel>
 </rss>
@@ -207,10 +263,10 @@ async def main():
     with open("current_audio_filename.txt", "w") as f:
         f.write(audio_filename)
 
-    # 1. 抓取 50 条候选素材
-    raw_news = fetch_candidate_news(candidate_limit=50)
+    # 1. 抓取 9 大源的候选素材
+    raw_news = fetch_candidate_news(candidate_limit=60)
     
-    # 2. 改写为 20 条深度客观播报稿
+    # 2. 改写为 20 条深度客观播报稿（含联合早报等中外来源引用）
     broadcast_script = rewrite_with_gemini(raw_news, api_key, period_name)
     
     # 3. 合成音频
@@ -220,7 +276,7 @@ async def main():
     file_size = os.path.getsize(audio_filename)
     audio_url = f"https://github.com/{repo}/releases/download/{tag}/{audio_filename}"
     update_podcast_feed(audio_url, file_size, episode_title)
-    print("本期 20 条深度要闻播客制作完成！")
+    print("本期 9 源深度播客制作完成！")
 
 if __name__ == "__main__":
     asyncio.run(main())
