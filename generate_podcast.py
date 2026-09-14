@@ -9,7 +9,8 @@ import feedparser
 import edge_tts
 
 # 新闻源与音色配置
-RSS_URL = "https://feeds.bbci.co.uk/news/world/rss.xml"
+# RSS_URL = "https://feeds.bbci.co.uk/news/world/rss.xml"
+RSS_URL = "https://www.zaobao.com.sg/rss/realtime/world"
 VOICE = "zh-CN-YunxiNeural"  # 微软 Edge TTS 推荐新闻男声：云希
 
 def fetch_top_news(limit=10):
