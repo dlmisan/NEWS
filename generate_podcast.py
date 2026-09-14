@@ -147,7 +147,7 @@ def rewrite_with_gemini(raw_news, api_key, period_name):
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
     # 【修复2】加入 timeout=30 控制，防止请求 API 时一直挂起，耗尽 Action 运行时长
-    response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=30)
+    response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=240)
     data = response.json()
     try:
         return data["candidates"][0]["content"]["parts"][0]["text"]
