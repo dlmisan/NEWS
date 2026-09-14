@@ -1,0 +1,58 @@
+name: Daily Podcast Pipeline
+
+on:
+  schedule:
+    # 每天北京时间早 05:00 (UTC 21:00 前一天)
+    - cron: '0 21 * * *'
+    # 每天北京时间晚 17:00 (UTC 09:00 当天)
+    - cron: '0 9 * * *'
+
+  # 支持在 GitHub 网页或手机端随时点按手动运行
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Generate News Audio & Podcast XML
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python generate_podcast.py
+
+      - name: Create GitHub Release and Upload Audio
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME=$(cat current_tag.txt)
+          AUDIO_FILE=$(cat current_audio_filename.txt)
+          
+          gh release create "$TAG_NAME" "$AUDIO_FILE" \
+            --title "国际要闻播报 ($TAG_NAME)" \
+            --notes "由 GitHub Actions 自动化生成"
+
+      - name: Deploy RSS to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          keep_files: true
