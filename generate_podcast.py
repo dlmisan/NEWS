@@ -97,23 +97,28 @@ def fetch_candidate_news(candidate_limit=20):
 def rewrite_with_gemini(raw_news, api_key, period_name):
     print(f"正在调用大模型进行【语义去重 + 话题融合 + {period_name}口播稿撰写】...")
     prompt = f"""
-你是一位国际顶级广播电台的资深新闻主编与主播。
-以下提供了从多家国际权威媒体收集的候选新闻素材（可能有多家媒体报道了同一个国际事件）：
+你是一位严谨、客观的国家级新闻广播电台播音员。
+以下是从多家国际权威媒体收集的新闻素材：
 
-【核心任务与要求】：
-1. **语义去重与事件整合（最关键）**：
-   - 仔细比对所有素材。如果发现多家媒体报道了同一个国际事件（即便用词或角度不同），**必须将其融合成同一个新闻要点**，绝不能作为两条独立事件重复出现！
-   - 融合时可综合各方视角（例如在口播中融入“据英国广播公司与德国之声综合报道……”）。
-2. **精选 10 个独立重大事件**：
-   - 从整合后的话题中，挑选出全球影响力最大的 **恰好 10 个互不重合的独立事件** 进行播报。
-3. **口播电台风格**：
-   - 开篇有亲切的【{period_name}】问候，结尾有简短的收尾致谢。
-   - 10 个事件之间必须有自然流畅的广播转场过渡（如“在另一项重要进展中……”、“经济层面同样传来消息……”）。
-   - 语言地道、口语化，适合直接朗读。
-   - **严禁出现 Markdown 标记（如 **、*、#）、括号、网址或特殊标点**。
-4. **字数控制**：全篇广播稿字数在 2500~3000 字左右。
+【核心任务与规则】：
+1. 筛选 30 条独立要闻：
+   - 仔细比对素材，如果多家媒体报道同一事件，必须融合成一条，严禁同一事件分两段播报。
+   - 优先选择涉及以下主题的事件（素材中若有则优先入选；若无此类报道则按其他重大要闻顺延，切勿无中生有）：俄乌局势、中东局势/以色列相关军事行动、美伊局势等。
+   - 内容过滤：若素材中涉及中国国内政治、特定领导人等内容，请直接剔除，不予采纳。
 
-新闻素材如下：
+2. 绝对忠实于素材事实（核心红线）：
+   - 严格以第三人称客观复述素材中明确提及的事实（时间、地点、涉事主体、发生事件与官方通报）。
+   - 严禁自行引申、脑补背景、添加素材中没有的评论或推测，杜绝主观形容词。
+
+3. 播音风格与排版：
+   - 开篇简短问候（{period_name}），播报当前时间，结尾简短致谢。
+   - 30 个事件依次播报，条目间使用简短自然的广播转场词（如“下一条消息”、“另一项国际动态是……”）。
+   - 纯文本输出：严禁出现 Markdown 标记（严禁出现 **、# 等符号）、括号、网址。
+
+4. 篇幅控制：
+   - 每条新闻保留 100~130 字的核心事实提炼，全篇总字数严格控制在 3500~4500 字左右，确保结构完整，切勿被截断。
+
+原始新闻素材如下：
 {raw_news}
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
@@ -159,7 +164,7 @@ def update_podcast_feed(audio_url, audio_size, episode_title):
     <title>每日国际要闻速递</title>
     <link>https://github.com</link>
     <language>zh-cn</language>
-    <description>每日早晚自动汇总全球多源热点 10 条新闻，AI 自动语义去重与配音播报。</description>
+    <description>每日早晚自动汇总全球多源热点 30 条新闻，AI 自动语义去重与配音播报。</description>
 {items_block}
   </channel>
 </rss>
@@ -192,8 +197,8 @@ async def main():
     with open("current_audio_filename.txt", "w") as f:
         f.write(audio_filename)
 
-    # 1. 扩大抓取池（抓取 20 条）
-    raw_news = fetch_candidate_news(candidate_limit=20)
+    # 1. 扩大抓取池（抓取 50 条）
+    raw_news = fetch_candidate_news(candidate_limit=50)
     
     # 2. 由 Gemini 执行语义去重并生成 10 个独立事件广播稿
     broadcast_script = rewrite_with_gemini(raw_news, api_key, period_name)
