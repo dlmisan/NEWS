@@ -69,7 +69,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add history_ids.txt
-          git commit -m "Update news deduplication history [skip ci]" || echo "No history changes to commit"
+          it -m "Update news deduplication history" || echo "No history changes to commit"
           # 【保险2】提交前先拉取远程最新代码，防止运行期间远程仓库有变动导致 push 失败
           git pull --rebase origin main
           git push origin main
