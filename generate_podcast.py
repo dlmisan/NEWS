@@ -75,7 +75,8 @@ def fetch_candidate_news(candidate_limit=60):
         name = src["name"]
         url = src["url"]
         try:
-            feed = feedparser.parse(url)
+            # 【修复1】强制传入 User-Agent，伪装成浏览器，防止被直接 403 拦截
+            feed = feedparser.parse(url, agent=USER_AGENT)
             valid_entries = []
             for entry in feed.entries:
                 entry_id = getattr(entry, "id", entry.link)
@@ -137,14 +138,16 @@ def rewrite_with_gemini(raw_news, api_key, period_name):
    - 严禁加入任何未经素材提及的推测、主观分析、形容词或 AI 观点，仅客观复述事实（时间、地点、主体、发生情况与官方表态）。
    - 纯文本输出：严禁出现 Markdown 标记（如 **、#）、括号、网址或特殊符号。
 
-5. 篇幅：每条新闻保留核心事实，全篇总字数控制在 4200~4500 字左右，确保结构完整，切勿中途截断。
+5. 篇幅：每条新闻保留核心事实，全篇总字数控制在 4000~4800 字左右，确保结构完整，切勿中途截断。
 
 原始新闻素材如下：
 {raw_news}
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+    
+    # 【修复2】加入 timeout=30 控制，防止请求 API 时一直挂起，耗尽 Action 运行时长
+    response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=30)
     data = response.json()
     try:
         return data["candidates"][0]["content"]["parts"][0]["text"]
