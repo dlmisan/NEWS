@@ -197,8 +197,8 @@ async def main():
     with open("current_audio_filename.txt", "w") as f:
         f.write(audio_filename)
 
-    # 1. 扩大抓取池（抓取 50 条）
-    raw_news = fetch_candidate_news(candidate_limit=50)
+    # 1. 扩大抓取池（抓取 70 条）
+    raw_news = fetch_candidate_news(candidate_limit=70)
     
     # 2. 由 Gemini 执行语义去重并生成 10 个独立事件广播稿
     broadcast_script = rewrite_with_gemini(raw_news, api_key, period_name)
