@@ -9,29 +9,46 @@ import feedparser
 import edge_tts
 
 # ==========================================
-# 新闻源配置（覆盖英、德、美及全球综合通讯社）
+# 1. 精选 8 大全球权威公开信源池（中英双轨、极度稳定）
 # ==========================================
 NEWS_SOURCES = [
     {
-        "name": "英国广播公司 BBC",
+        "name": "BBC 中文网",
+        "url": "https://feeds.bbci.co.uk/zhongwen/simp/rss.xml"
+    },
+    {
+        "name": "德国之声 DW 中文",
+        "url": "https://rss.dw.com/rdf/rss-chi-all"
+    },
+    {
+        "name": "英国广播公司 BBC (国际)",
         "url": "https://feeds.bbci.co.uk/news/world/rss.xml"
     },
     {
-        "name": "德国之声 DW",
-        "url": "https://rss.dw.com/rdf/rss-en-world"
+        "name": "半岛电视台 Al Jazeera",
+        "url": "https://www.aljazeera.com/xml/rss/all.xml"
+    },
+    {
+        "name": "法国 24 台 France 24",
+        "url": "https://www.france24.com/en/rss"
     },
     {
         "name": "美国国家公共电台 NPR",
         "url": "https://feeds.npr.org/1004/rss.xml"
     },
     {
-        "name": "国际通讯社综合",
+        "name": "联合国新闻 UN News",
+        "url": "https://news.un.org/feed/subscribe/en/news/all/rss.xml"
+    },
+    {
+        "name": "国际通讯社聚合 Google News",
         "url": "https://news.google.com/rss/headlines/section/topic/WORLD"
     }
 ]
 
-VOICE = "zh-CN-YunxiNeural"  # 微软 Edge TTS 推荐新闻男声：云希
+VOICE = "zh-CN-YunyangNeural"  # 微软 Edge TTS 推荐新闻男声：云杨
 HISTORY_FILE = "history_ids.txt"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
 def load_history():
     if os.path.exists(HISTORY_FILE):
