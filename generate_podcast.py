@@ -30,7 +30,7 @@ NEWS_SOURCES = [
     }
 ]
 
-VOICE = "zh-CN-YunxiNeural"  # 微软 Edge TTS 专业新闻男声：云希
+VOICE = "zh-CN-YunyangNeural"  # 微软 Edge TTS 推荐新闻男声：云杨
 HISTORY_FILE = "history_ids.txt"
 
 # 读取历史已播链接
