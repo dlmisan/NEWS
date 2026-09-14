@@ -10,24 +10,24 @@ import feedparser
 import edge_tts
 
 # ==========================================
-# 1. 全球 9 大权威多媒体 RSS 信源池配置
+# 1. 精选 8 大全球权威公开信源池（中英双轨、极度稳定）
 # ==========================================
 NEWS_SOURCES = [
     {
-        "name": "新加坡联合早报",
-        "url": "https://www.zaobao.com.sg/rss/realtime/world"
+        "name": "BBC 中文网",
+        "url": "https://feeds.bbci.co.uk/zhongwen/simp/rss.xml"
     },
     {
-        "name": "英国广播公司 BBC",
+        "name": "德国之声 DW 中文",
+        "url": "https://rss.dw.com/rdf/rss-chi-all"
+    },
+    {
+        "name": "英国广播公司 BBC (国际)",
         "url": "https://feeds.bbci.co.uk/news/world/rss.xml"
     },
     {
         "name": "半岛电视台 Al Jazeera",
         "url": "https://www.aljazeera.com/xml/rss/all.xml"
-    },
-    {
-        "name": "德国之声 DW",
-        "url": "https://rss.dw.com/rdf/rss-en-world"
     },
     {
         "name": "法国 24 台 France 24",
@@ -42,45 +42,39 @@ NEWS_SOURCES = [
         "url": "https://news.un.org/feed/subscribe/en/news/all/rss.xml"
     },
     {
-        "name": "日本广播协会 NHK World",
-        "url": "https://www3.nhk.or.jp/nhkworld/en/news/rss/index.xml"
-    },
-    {
-        "name": "国际通讯社综合 Google News",
+        "name": "国际通讯社聚合 Google News",
         "url": "https://news.google.com/rss/headlines/section/topic/WORLD"
     }
 ]
 
-VOICE = "zh-CN-YunyangNeural"  # 微软 Edge TTS 推荐新闻男声：云杨
+VOICE = "zh-CN-YunxiNeural"  # 微软 Edge TTS 专业新闻男声
 HISTORY_FILE = "history_ids.txt"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
-# 读取历史已播记录
 def load_history():
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE, "r", encoding="utf-8") as f:
             return set(line.strip() for line in f if line.strip())
     return set()
 
-# 保存历史已播记录，保留最近 300 条
 def save_history(history_set):
-    recent_history = list(history_set)[-300:]
+    # 只保留最近 100 条已播记录，既能防重，又避免长时间测试造成信源枯竭
+    recent_history = list(history_set)[-100:]
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(recent_history))
 
-# 抓取 60 条候选新闻供大模型筛选
-def fetch_candidate_news(candidate_limit=60):
+# 抓取候选池：确保充足素材（目标 40~50 条）
+def fetch_candidate_news(candidate_limit=50):
     history = load_history()
     source_buckets = {}
     all_raw_entries = []
 
-    print(f"正在从 {len(NEWS_SOURCES)} 个国际媒体源收集候选资讯...")
+    print(f"正在从 {len(NEWS_SOURCES)} 个权威媒体源收集最新资讯...")
 
     for src in NEWS_SOURCES:
         name = src["name"]
         url = src["url"]
         try:
-            # 携带浏览器 User-Agent，避免部分媒体（如联合早报）因识别为爬虫而拦截
             feed = feedparser.parse(url, agent=USER_AGENT)
             valid_entries = []
             for entry in feed.entries:
@@ -89,7 +83,7 @@ def fetch_candidate_news(candidate_limit=60):
                 if entry_id not in history:
                     valid_entries.append((entry, entry_id, name))
             source_buckets[name] = valid_entries
-            print(f"  - [{name}] 抓取到 {len(valid_entries)} 条全新候选")
+            print(f"  - [{name}] 抓取到 {len(feed.entries)} 条实时资讯 (其中全新未播: {len(valid_entries)} 条)")
         except Exception as e:
             print(f"  - [{name}] 抓取跳过 (网络或解析异常: {e})")
             source_buckets[name] = []
@@ -98,7 +92,7 @@ def fetch_candidate_news(candidate_limit=60):
     new_ids = set()
     max_loops = max([len(v) for v in source_buckets.values()], default=0)
 
-    # 轮询各媒体抽取新鲜未播新闻
+    # 第一轮：优先提取从未播报过的全新新闻
     for i in range(max_loops):
         for name, entries in source_buckets.items():
             if i < len(entries):
@@ -106,57 +100,61 @@ def fetch_candidate_news(candidate_limit=60):
                 if entry_id not in new_ids:
                     title = entry.title
                     summary = entry.summary if hasattr(entry, 'summary') else ""
-                    candidates.append(f"【媒体来源：{media_name}】 标题: {title}\n摘要: {summary}\n")
+                    # 清洗掉可能存在的 HTML 标签
+                    summary = re.sub(r'<[^>]+>', '', summary).strip()
+                    candidates.append(f"【媒体：{media_name}】 标题: {title} | 概要: {summary}")
                     new_ids.add(entry_id)
                     if len(candidates) >= candidate_limit:
                         break
         if len(candidates) >= candidate_limit:
             break
 
-    # 保底机制：若全新新闻不足 30 条（如连续手动测试），放宽历史限制补充最新热点
+    # 保底防饥饿机制：若全新新闻不足 30 条（如连续手动测试），放宽历史补充最新热点
     if len(candidates) < 30:
-        print(f"提示：全新资讯仅 {len(candidates)} 条，启动保底机制补足素材...")
+        print(f"提示：全新资讯不足 30 条 (当前 {len(candidates)} 条)，启动保底机制回填实时最新要闻...")
         for entry, entry_id, media_name in all_raw_entries:
             if entry_id not in new_ids:
                 title = entry.title
                 summary = entry.summary if hasattr(entry, 'summary') else ""
-                candidates.append(f"【媒体来源：{media_name}】 标题: {title}\n摘要: {summary}\n")
+                summary = re.sub(r'<[^>]+>', '', summary).strip()
+                candidates.append(f"【媒体：{media_name}】 标题: {title} | 概要: {summary}")
                 new_ids.add(entry_id)
                 if len(candidates) >= candidate_limit:
                     break
 
+    # 保存本次入选记录
     history.update(new_ids)
     save_history(history)
     
-    print(f"总计获取 {len(candidates)} 条多源候选素材，准备交由 AI 深度提炼...")
+    print(f"--> 总计精选出 {len(candidates)} 条充足素材送入 AI 处理！")
     return "\n".join(candidates)
 
-# 调用 Gemini 提炼 20 条深度新闻口播稿
+# 调用 Gemini：忠于事实、15条完整要闻、字数达标
 def rewrite_with_gemini(raw_news, api_key, period_name):
-    print(f"正在生成【{period_name}】深度新闻口播稿（20 条长篇深度报道）...")
+    print(f"正在调用大模型提炼【{period_name}】国际要闻广播稿...")
     prompt = f"""
-你是一位严谨、专业的国家级新闻广播电台资深播音员。
-以下是从全球多所国际权威媒体收集的新闻素材：
+你是一位国家级广播电台的高级国际新闻主播。
+请根据以下收集到的国际新闻素材，提炼并撰写一篇专业、严谨、客观的中文【{period_name}】广播口播稿。
 
-【核心任务与改写规则】：
-1. 筛选 20 条独立重大要闻：
-   - 仔细比对素材，多家媒体报道同一事件时必须融合成一条（可注明“据多家媒体综合报道”），严禁同一事件分两段播报。
-   - 优先关注：俄乌战争局势、美国与伊朗局势、以色列与中东冲突相关行动（素材中若有则优先入选；若无此类报道则按其他重大要闻顺延，严禁无中生有）。
-   - 内容过滤：若素材中涉及中国国内政局、特定领导人等内容，请直接剔除，不予采纳。
+【核心采编规则】：
+1. 精选 15 条重大独立要闻：
+   - 仔细比对素材，同一事件若有多家媒体报道，必须合并为一条（可注明“据多家媒体报道”），严禁同一事件分两段播报。
+   - 优先选题：俄乌战场及地缘局势、美国与伊朗局势、以色列与中东冲突及周边动态。素材中若有则优先入选；若无则按其他重大国际经济/政治要闻顺延，严禁无中生有。
+   - 内容过滤：若素材涉及中国国内政局或特定领导人，一律剔除，不予采纳。
 
-2. 丰富细节与深度展开（关键要求）：
-   - 每条新闻必须深入、饱满，单条篇幅保持在 200~250 字左右。
-   - 允许且要求：在严格忠实于原素材核心事实的基础上，结合公认的客观历史脉络、地理背景和相关协议条款做客观补充展开，让听众能完整理解来龙去脉。
-   - 严厉禁止：严禁加入任何未经证实的推测、主观臆断、形容词修饰或 AI 评论。
+2. 绝对真实客观，杜绝虚构脑补（核心红线）：
+   - 严格基于所提供的素材事实复述（时间、地点、涉事主体、发生经过、官方结论）。
+   - 严禁自行脑补未提及的历史前因后果、严禁加入推测性假设、AI 评价或主观情绪化形容词。
 
-3. 规范播报风格：
-   - 必须指明来源：每条新闻开门见山说明消息出处（例如：“据新加坡联合早报报道……”、“英国广播公司报道……”、“半岛电视台消息指出……”、“德国之声报道称……”）。
-   - 彻底删除转场词：严禁出现“下一条消息”、“另一项国际动态是”、“下面关注”、“与此同时”等过渡套话，直接逐条以客观事实切入。
-   - 开篇与结尾：开篇仅做简短问候（例如：“听众朋友们好，欢迎收听国际要闻{period_name}。”），严禁播报具体的当前时间或日期。结尾简短致谢收尾。
-   - 纯文本输出：严禁出现 Markdown 标记（严禁出现 **、# 等符号）、括号、网址。
+3. 播音规范与格式：
+   - 交代消息出处：每条新闻开门见山点明来源（例如：“据英国广播公司报道……”、“德国之声中文网消息……”、“半岛电视台报道称……”）。
+   - 彻底删除转场套话：严禁出现“下一条消息”、“另一项动态”、“下面关注”、“与此同时”等过渡词，直接切入事实。
+   - 开篇与结尾：开篇仅一句问候（“听众朋友们好，欢迎收听国际要闻{period_name}。”），严禁播报具体几点几分。结尾仅一句致谢（“以上是本次要闻播报，感谢收听。”）。
+   - 纯文本格式：严禁输出任何 Markdown 符号（严禁出现 **、# 等）、括号或网址。
 
-4. 篇幅目标：
-   - 全篇总字数控制在 4500~5200 字左右，结构必须完整，切勿被截断。
+4. 篇幅要求：
+   - 15 条新闻必须完整逐条播报，每条新闻篇幅控制在 130~170 字，交代清楚核心要素。
+   - 全篇总字数务必达到 2200~2600 字左右（播音时长约 9~11 分钟），确保结构完整，严禁截断。
 
 原始新闻素材如下：
 {raw_news}
@@ -170,37 +168,38 @@ def rewrite_with_gemini(raw_news, api_key, period_name):
         }
     }
 
-    # 应对 503 算力高峰的 3 次重试逻辑
     max_retries = 3
     for attempt in range(1, max_retries + 1):
         try:
             response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=120)
             data = response.json()
             if "candidates" in data and len(data["candidates"]) > 0:
-                return data['candidates'][0]['content']['parts'][0]['text']
+                script = data['candidates'][0]['content']['parts'][0]['text']
+                print(f"--> 大模型生成成功！广播稿总字数: {len(script)} 字")
+                return script
             
             error_msg = data.get("error", {}).get("message", str(data))
             print(f"API 响应异常 (尝试 {attempt}/{max_retries}): {error_msg}")
             if attempt < max_retries:
-                sleep_time = attempt * 8
-                print(f"等待 {sleep_time} 秒后重试...")
-                time.sleep(sleep_time)
+                time.sleep(attempt * 6)
             else:
                 raise RuntimeError(f"Gemini API 响应异常: {data}")
         except requests.exceptions.RequestException as req_err:
-            print(f"网络连接异常 (尝试 {attempt}/{max_retries}): {req_err}")
+            print(f"网络异常 (尝试 {attempt}/{max_retries}): {req_err}")
             if attempt < max_retries:
-                time.sleep(attempt * 8)
+                time.sleep(attempt * 6)
             else:
                 raise
 
 # 语音合成
 async def text_to_speech(text, output_file):
-    print(f"正在合成完整新闻音频: {output_file} ...")
+    print(f"正在进行语音合成: {output_file} ...")
     communicate = edge_tts.Communicate(text, VOICE)
     await communicate.save(output_file)
+    size_mb = os.path.getsize(output_file) / (1024 * 1024)
+    print(f"--> 语音合成完成！音频大小: {size_mb:.2f} MB")
 
-# 增量更新 RSS XML
+# 更新播客 RSS XML
 def update_podcast_feed(audio_url, audio_size, episode_title):
     print("正在增量更新 podcast.xml ...")
     pub_date = email.utils.format_datetime(datetime.datetime.now(datetime.timezone.utc))
@@ -209,7 +208,7 @@ def update_podcast_feed(audio_url, audio_size, episode_title):
     
     new_item = f"""    <item>
       <title>{episode_title}</title>
-      <description>今日聚合全球 9 大权威媒体要闻 20 条深度客观播报。</description>
+      <description>今日聚合全球 8 大权威媒体要闻深度客观播报。</description>
       <pubDate>{pub_date}</pubDate>
       <enclosure url="{audio_url}" length="{audio_size}" type="audio/mpeg"/>
       <guid>{audio_url}</guid>
@@ -230,7 +229,7 @@ def update_podcast_feed(audio_url, audio_size, episode_title):
     <title>每日国际要闻速递</title>
     <link>https://github.com</link>
     <language>zh-cn</language>
-    <description>每日早晚自动汇总全球主流媒体 20 条深度国际要闻，AI 严谨播报。</description>
+    <description>每日早晚自动汇总全球多源权威国际要闻，AI 严谨播报。</description>
 {items_block}
   </channel>
 </rss>
@@ -263,20 +262,20 @@ async def main():
     with open("current_audio_filename.txt", "w") as f:
         f.write(audio_filename)
 
-    # 1. 抓取 9 大源的候选素材
-    raw_news = fetch_candidate_news(candidate_limit=60)
+    # 1. 抓取多源候选（确保 40~50 条足额素材）
+    raw_news = fetch_candidate_news(candidate_limit=50)
     
-    # 2. 改写为 20 条深度客观播报稿（含联合早报等中外来源引用）
+    # 2. 改写为 15 条纯客观、事实准确的广播稿（2200~2600字）
     broadcast_script = rewrite_with_gemini(raw_news, api_key, period_name)
     
-    # 3. 合成音频
+    # 3. 合成完整音频
     await text_to_speech(broadcast_script, audio_filename)
     
-    # 4. 更新单集信息
+    # 4. 发布单集
     file_size = os.path.getsize(audio_filename)
     audio_url = f"https://github.com/{repo}/releases/download/{tag}/{audio_filename}"
     update_podcast_feed(audio_url, file_size, episode_title)
-    print("本期 9 源深度播客制作完成！")
+    print("本期高质量国际要闻播客制作完成！")
 
 if __name__ == "__main__":
     asyncio.run(main())
