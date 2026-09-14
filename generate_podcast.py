@@ -35,7 +35,7 @@ def rewrite_with_gemini(raw_news, api_key, period_name):
 新闻素材如下：
 {raw_news}
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
     data = response.json()
