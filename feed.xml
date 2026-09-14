@@ -6,11 +6,11 @@
     <language>zh-cn</language>
     <description>每日自动汇总全球热点 10 条新闻，AI 自动播报。</description>
     <item>
-      <title>国际要闻早报 (2026-09-14 11:36)</title>
+      <title>国际要闻早报 (2026-09-14 11:48)</title>
       <description>热点国际要闻 10 条口播摘要。</description>
-      <pubDate>Mon, 14 Sep 2026 03:37:03 +0000</pubDate>
-      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20260914-1136/news-20260914-1136.mp3" length="1666944" type="audio/mpeg"/>
-      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20260914-1136/news-20260914-1136.mp3</guid>
+      <pubDate>Mon, 14 Sep 2026 03:49:13 +0000</pubDate>
+      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20260914-1148/news-20260914-1148.mp3" length="1756656" type="audio/mpeg"/>
+      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20260914-1148/news-20260914-1148.mp3</guid>
     </item>
   </channel>
 </rss>
