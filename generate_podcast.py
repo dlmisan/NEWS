@@ -9,10 +9,102 @@ import feedparser
 import requests
 import edge_tts
 
-# ==========================================
-# 1. 精选 8 大全球权威公开信源池（中英双轨、极度稳定）
-# ==========================================
-NEWS_SOURCES = [
+EXTRA_NEWS_SOURCES = [
+
+    # ------------------------------------------
+    # 类别一：中文优质国际新闻源 (补充现有中文源)
+    # ------------------------------------------
+    {
+        "name": "纽约时报 (中文版)",
+        "url": "https://cn.nytimes.com/rss/",
+        # 优势：深度国际时政分析，对美国大选和中东局势有极高价值的深度报道
+    },
+    {
+        "name": "法国广播电台 RFI (中文)",
+        "url": "https://www.rfi.fr/cn/rss",
+        # 优势：欧洲视角，对俄乌战争和欧洲地缘政治报道非常及时
+    },
+    {
+        "name": "端传媒 Initium (国际频道)",
+        "url": "https://feeds.initium.news/theinitium?category=international",
+        # 优势：高质量的华语原创深度报道（摘要可用）
+    },
+
+    # ------------------------------------------
+    # 类别二：美国顶级主流媒体 (主攻特朗普/美国政治/全球地缘)
+    # ------------------------------------------
+    {
+        "name": "CNN (世界新闻)",
+        "url": "http://rss.cnn.com/rss/edition_world.rss",
+        # 优势：突发新闻极快，美国视角的全球要闻
+    },
+    {
+        "name": "纽约时报 NYT (世界新闻)",
+        "url": "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+        # 优势：全球最具影响力的报纸之一，事实核查严谨
+    },
+    {
+        "name": "华盛顿邮报 WP (世界新闻)",
+        "url": "https://feeds.washingtonpost.com/rss/world",
+        # 优势：离白宫最近的媒体，对美国外交政策、军事情报报道独道
+    },
+    {
+        "name": "华尔街日报 WSJ (国际新闻)",
+        "url": "https://feeds.a.dj.com/rss/RSSWorldNews.xml",
+        # 优势：兼顾地缘政治与宏观经济，对制裁、能源危机报道精准
+    },
+
+    # ------------------------------------------
+    # 类别三：欧洲老牌权威媒体 (主攻俄乌战争/欧洲格局)
+    # ------------------------------------------
+    {
+        "name": "英国卫报 The Guardian (国际)",
+        "url": "https://www.theguardian.com/world/rss",
+        # 优势：免费且高质量的英国左翼大报，对气候、人权、中东有大量报道
+    },
+    {
+        "name": "英国每日电讯报 Telegraph (国际)",
+        "url": "https://www.telegraph.co.uk/world-news/rss.xml",
+        # 优势：英国老牌右翼大报，对军事动态和地缘冲突解析非常硬核
+    },
+
+    # ------------------------------------------
+    # 类别四：亚洲与区域强媒 (补充非西方视角)
+    # ------------------------------------------
+    {
+        "name": "南华早报 SCMP (亚洲与世界)",
+        "url": "https://www.scmp.com/rss/2/feed",
+        # 优势：立足香港，全英文播报亚洲与全球宏观动态
+    },
+    {
+        "name": "日本时报 The Japan Times (世界新闻)",
+        "url": "https://www.japantimes.co.jp/news/world/feed/",
+        # 优势：提供亚太地区和印太战略视角的重磅新闻
+    },
+    {
+        "name": "印度时报 Times of India (世界频道)",
+        "url": "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
+        # 优势：南亚最大的英文媒体，提供“全球南方”国家的独特视角
+    },
+
+    # ------------------------------------------
+    # 类别五：商业与科技前沿 (主攻马斯克/AI/科技巨头)
+    # ------------------------------------------
+    {
+        "name": "CNBC (国际新闻)",
+        "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?id=100727362",
+        # 优势：对马斯克商业帝国（Tesla/SpaceX）、美联储动向报道极速
+    },
+    {
+        "name": "TechCrunch (科技创投)",
+        "url": "https://techcrunch.com/feed/",
+        # 优势：全球科技圈第一手资讯，涉及马斯克、OpenAI等AI巨头动态必看
+    },
+    {
+        "name": "雅虎财经 Yahoo Finance",
+        "url": "https://finance.yahoo.com/news/rss",
+        # 优势：聚合了彭博社、路透社的大量财经和政商跨界新闻
+    },
     {
         "name": "BBC 中文网",
         "url": "https://feeds.bbci.co.uk/zhongwen/simp/rss.xml",
@@ -36,10 +128,6 @@ NEWS_SOURCES = [
     {
         "name": "美国国家公共电台 NPR",
         "url": "https://feeds.npr.org/1004/rss.xml",
-    },
-    {
-        "name": "联合国新闻 UN News",
-        "url": "https://news.un.org/feed/subscribe/en/news/all/rss.xml",
     },
     {
         "name": "国际通讯社聚合 Google News",
