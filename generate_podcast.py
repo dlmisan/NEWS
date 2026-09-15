@@ -279,14 +279,11 @@ async def main():
     date_display = bj_time.strftime("%Y-%m-%d")
 
     hour = bj_time.hour
-    if 4 <= hour < 12:
-        period_name = "早报"
-    elif 12 <= hour < 19:
-        period_name = "晚报"
+    if hour < 12:
+        period_name = "早间新闻"
     else:
-        period_name = "特别快报"
-
-    episode_title = f"国际要闻{period_name} ({date_display})"
+        period_name = "晚间新闻"
+    episode_title = f"{period_name} ({date_display})"
     tag = f"episode-{time_str}"
     audio_filename = f"news-{time_str}.mp3"
 
