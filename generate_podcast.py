@@ -9,7 +9,7 @@ import feedparser
 import requests
 import edge_tts
 
-EXTRA_NEWS_SOURCES = [
+NEWS_SOURCES = [
 
     # ------------------------------------------
     # 类别一：中文优质国际新闻源 (补充现有中文源)
