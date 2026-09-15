@@ -4,16 +4,12 @@ import email.utils
 import json
 import os
 import re
-import time  # 【新增】导入时间模块，用于重试时的等待
+import time 
 import feedparser
 import requests
 import edge_tts
 
 NEWS_SOURCES = [
-
-    # ------------------------------------------
-    # 类别一：中文优质国际新闻源 (补充现有中文源)
-    # ------------------------------------------
     {
         "name": "纽约时报 (中文版)",
         "url": "https://cn.nytimes.com/rss/",
@@ -24,15 +20,6 @@ NEWS_SOURCES = [
         "url": "https://www.rfi.fr/cn/rss",
         # 优势：欧洲视角，对俄乌战争和欧洲地缘政治报道非常及时
     },
-    {
-        "name": "端传媒 Initium (国际频道)",
-        "url": "https://feeds.initium.news/theinitium?category=international",
-        # 优势：高质量的华语原创深度报道（摘要可用）
-    },
-
-    # ------------------------------------------
-    # 类别二：美国顶级主流媒体 (主攻特朗普/美国政治/全球地缘)
-    # ------------------------------------------
     {
         "name": "CNN (世界新闻)",
         "url": "http://rss.cnn.com/rss/edition_world.rss",
@@ -53,47 +40,20 @@ NEWS_SOURCES = [
         "url": "https://feeds.a.dj.com/rss/RSSWorldNews.xml",
         # 优势：兼顾地缘政治与宏观经济，对制裁、能源危机报道精准
     },
-
-    # ------------------------------------------
-    # 类别三：欧洲老牌权威媒体 (主攻俄乌战争/欧洲格局)
-    # ------------------------------------------
     {
         "name": "英国卫报 The Guardian (国际)",
         "url": "https://www.theguardian.com/world/rss",
         # 优势：免费且高质量的英国左翼大报，对气候、人权、中东有大量报道
     },
     {
-        "name": "英国每日电讯报 Telegraph (国际)",
-        "url": "https://www.telegraph.co.uk/world-news/rss.xml",
-        # 优势：英国老牌右翼大报，对军事动态和地缘冲突解析非常硬核
-    },
-
-    # ------------------------------------------
-    # 类别四：亚洲与区域强媒 (补充非西方视角)
-    # ------------------------------------------
-    {
         "name": "南华早报 SCMP (亚洲与世界)",
         "url": "https://www.scmp.com/rss/2/feed",
         # 优势：立足香港，全英文播报亚洲与全球宏观动态
     },
     {
-        "name": "日本时报 The Japan Times (世界新闻)",
-        "url": "https://www.japantimes.co.jp/news/world/feed/",
-        # 优势：提供亚太地区和印太战略视角的重磅新闻
-    },
-    {
         "name": "印度时报 Times of India (世界频道)",
         "url": "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
         # 优势：南亚最大的英文媒体，提供“全球南方”国家的独特视角
-    },
-
-    # ------------------------------------------
-    # 类别五：商业与科技前沿 (主攻马斯克/AI/科技巨头)
-    # ------------------------------------------
-    {
-        "name": "CNBC (国际新闻)",
-        "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?id=100727362",
-        # 优势：对马斯克商业帝国（Tesla/SpaceX）、美联储动向报道极速
     },
     {
         "name": "TechCrunch (科技创投)",
@@ -211,7 +171,7 @@ def rewrite_with_gemini(raw_news, api_key, period_name, max_retries=3):
 【核心任务与要求】：
 1. 筛选 25 至 30 条独立重大要闻：
    - 仔细比对素材，若多家媒体报道同一事件，必须融合成一条（可注明“据综合消息”），严禁同一事件分两段播报。
-   - 优先关注并入选以下主题：俄乌战争、美国伊朗局势、以色列战争/中东冲突、特朗普、马斯克（素材中若有则优先入选；若无此类报道则按其他重大要闻顺延，严禁凭空编造）。
+   - 优先关注并入选以下主题：俄乌战争、美国伊朗局势、以色列战争/中东冲突、特朗普（注意分辨特朗普是现任总统还是前总统）、马斯克、AI（素材中若有则优先入选；若无此类报道则按其他重大要闻顺延，严禁凭空编造）。
    - 新闻最后可加入1-2条体育消息。
    - 内容过滤：若素材中涉及中国国内政局、特定领导人等内容，直接剔除，不予采纳。
 
@@ -238,8 +198,8 @@ def rewrite_with_gemini(raw_news, api_key, period_name, max_retries=3):
     # 【新增】自动重试循环
     for attempt in range(max_retries):
         try:
-            # 保持 timeout=240，防止无响应挂起
-            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=240)
+            # 保持 timeout=360，防止无响应挂起
+            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=360)
             data = response.json()
             
             # 1. 成功情况：如果顺利拿到 candidates，直接返回结果
