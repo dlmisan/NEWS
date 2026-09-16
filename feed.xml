@@ -6,11 +6,11 @@
     <language>zh-cn</language>
     <description>每日自动汇总全球热点 30 条要闻，AI 严谨播报。</description>
     <item>
-      <title>早间新闻 (2026-09-16)</title>
+      <title>晚间新闻 (2026-09-16)</title>
       <description>今日聚合全球权威要闻 30 条客观播报。</description>
-      <pubDate>Tue, 15 Sep 2026 23:14:50 +0000</pubDate>
-      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20260916-0711/news-20260916-0711.mp3" length="4509360" type="audio/mpeg"/>
-      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20260916-0711/news-20260916-0711.mp3</guid>
+      <pubDate>Wed, 16 Sep 2026 10:04:34 +0000</pubDate>
+      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20260916-1801/news-20260916-1801.mp3" length="5131584" type="audio/mpeg"/>
+      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20260916-1801/news-20260916-1801.mp3</guid>
     </item>
   </channel>
 </rss>
