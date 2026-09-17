@@ -317,7 +317,7 @@ async def main():
     date_display = bj_time.strftime("%Y-%m-%d")
 
     # 单集标题加上清晰前缀，与【国际要闻】区分
-    episode_title = f"【奇闻文体】全球奇闻娱乐与体育速递 ({date_display})"
+    episode_title = f"【奇闻娱乐】全球奇闻娱乐与体育速递 ({date_display})"
     tag = f"ent-episode-{time_str}"
     audio_filename = f"ent-{time_str}.mp3"
 
