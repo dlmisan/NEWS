@@ -2,17 +2,16 @@ name: Daily Podcast Pipeline
 
 on:
   schedule:
-    # 每天北京时间早 04:45 (UTC 21:00) - 建议错开整点高峰，改为： 20:45
+    # 每天北京时间早 04:45 (UTC 20:45)
     - cron: '45 20 * * *'
-    # 每天北京时间晚 17:15 (UTC 09:00) - 建议错开整点高峰，改为 09:15
+    # 每天北京时间晚 17:15 (UTC 09:15)
     - cron: '15 9 * * *'
-
   # 支持随时手动点击运行
   workflow_dispatch:
 
-# 【保险1】并发控制：确保同一时间只有一个流在运行，防止 Git 提交冲突
+# 独立的并发控制，防止冲突
 concurrency:
-  group: podcast-pipeline
+  group: podcast-daily-pipeline
   cancel-in-progress: false 
 
 permissions:
@@ -28,7 +27,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 确保拉取完整历史，避免 push 报错
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -65,18 +64,12 @@ jobs:
           keep_files: true
 
       - name: Save News Deduplication History
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        
-        # 提交国际新闻的历史记录与最新的合并 feed
-        git add history_ids.txt public/feed.xml || true
-        git commit -m "Update news deduplication history and feed" || echo "No changes to commit"
-        
-        # 清理残留，确保工作区干净
-        git checkout -- . || true
-        git clean -fd || true
-        
-        # 拉取并推送
-        git pull --rebase origin main
-        git push origin main
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add history_ids.txt public/feed.xml || true
+          git commit -m "Update news deduplication history and feed" || echo "No changes to commit"
+          git checkout -- . || true
+          git clean -fd || true
+          git pull --rebase origin main
+          git push origin main
