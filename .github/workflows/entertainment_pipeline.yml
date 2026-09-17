@@ -62,10 +62,18 @@ jobs:
           keep_files: true
 
       - name: Save Entertainment Deduplication History
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add ent_history_ids.txt public/feed.xml 
-          git commit -m "Update entertainment deduplication history and feed" || echo "No changes to commit"
-          git pull --rebase origin main
-          git push origin main
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # 提交娱乐奇闻的历史记录与最新的合并 feed
+        git add ent_history_ids.txt public/feed.xml || true
+        git commit -m "Update entertainment deduplication history and feed" || echo "No changes to commit"
+        
+        # 清理残留，确保工作区干净
+        git checkout -- . || true
+        git clean -fd || true
+        
+        # 拉取并推送
+        git pull --rebase origin main
+        git push origin main
