@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
   <channel>
-    <title>每日全球速递（要闻与奇闻文体）</title>
-    <link>https://github.com/dlmisan/NEWS</link>
+    <title>每日国际要闻速递</title>
+    <link>https://github.com</link>
     <language>zh-cn</language>
-    <description>每日自动汇总全球权威要闻、奇闻怪事、影视文娱与体坛焦点。</description>
+    <description>每日自动汇总全球热点 30 条要闻，AI 严谨播报。</description>
     <item>
+      <title>早间新闻 (2026-09-18)</title>
+      <description>今日聚合全球权威要闻 30 条客观播报。</description>
+      <pubDate>Thu, 17 Sep 2026 23:09:37 +0000</pubDate>
+      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20260918-0707/news-20260918-0707.mp3" length="5454576" type="audio/mpeg"/>
+      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20260918-0707/news-20260918-0707.mp3</guid>
+    </item>
+<item>
       <title>【奇闻娱乐】全球奇闻娱乐与体育速递 (2026-09-18)</title>
       <description>今日全球奇闻趣事、影视文娱与体坛焦点 20-25 条客观深入播报。</description>
       <pubDate>Thu, 17 Sep 2026 22:12:38 +0000</pubDate>
@@ -67,20 +74,6 @@
       <pubDate>Thu, 17 Sep 2026 01:06:55 +0000</pubDate>
       <enclosure url="https://github.com/dlmisan/NEWS/releases/download/ent-episode-20260917-0905/ent-20260917-0905.mp3" length="500256" type="audio/mpeg"/>
       <guid>https://github.com/dlmisan/NEWS/releases/download/ent-episode-20260917-0905/ent-20260917-0905.mp3</guid>
-    </item>
-<item>
-      <title>【奇闻娱乐】全球奇闻娱乐与体育速递 (2026-09-17)</title>
-      <description>全球奇闻趣事、影视文娱与体坛焦点 20-25 条生动口播汇编。</description>
-      <pubDate>Thu, 17 Sep 2026 00:58:14 +0000</pubDate>
-      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/ent-episode-20260917-0857/ent-20260917-0857.mp3" length="555120" type="audio/mpeg"/>
-      <guid>https://github.com/dlmisan/NEWS/releases/download/ent-episode-20260917-0857/ent-20260917-0857.mp3</guid>
-    </item>
-<item>
-      <title>【奇闻娱乐】全球奇闻娱乐与体育速递 (2026-09-17)</title>
-      <description>全球奇闻趣事、影视文娱与体坛焦点 20-25 条生动口播汇编。</description>
-      <pubDate>Thu, 17 Sep 2026 00:50:46 +0000</pubDate>
-      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/ent-episode-20260917-0849/ent-20260917-0849.mp3" length="524016" type="audio/mpeg"/>
-      <guid>https://github.com/dlmisan/NEWS/releases/download/ent-episode-20260917-0849/ent-20260917-0849.mp3</guid>
     </item>
   </channel>
 </rss>
