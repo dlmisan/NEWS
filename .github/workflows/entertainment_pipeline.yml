@@ -71,7 +71,7 @@ steps:
       git config --global user.name "github-actions[bot]"
       git config --global user.email "github-actions[bot]@users.noreply.github.com"
       # 注意：这里提交的是娱乐新闻的查重记录文件
-      git add ent_history_ids.txt
+      git add ent_history_ids.txt public/feed.xml
       git commit -m "Update entertainment deduplication history" || echo "No history changes to commit"
       # 【保险2】提交前先拉取远程最新代码，防止运行期间远程仓库有变动导致 push 失败
       git pull --rebase origin main
