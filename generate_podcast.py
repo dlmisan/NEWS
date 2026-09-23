@@ -10,40 +10,16 @@ import requests
 import edge_tts
 
 NEWS_SOURCES = [
-    {
-        "name": "纽约时报 (中文版)",
-        "url": "https://cn.nytimes.com/rss/",
-        # 优势：深度国际时政分析，对美国大选和中东局势有极高价值的深度报道
-    },
+    # ------------------ 保留的国际与商业/中立/区域媒体 ------------------
     {
         "name": "法国广播电台 RFI (中文)",
         "url": "https://www.rfi.fr/cn/rss",
         # 优势：欧洲视角，对俄乌战争和欧洲地缘政治报道非常及时
     },
     {
-        "name": "CNN (世界新闻)",
-        "url": "http://rss.cnn.com/rss/edition_world.rss",
-        # 优势：突发新闻极快，美国视角的全球要闻
-    },
-    {
-        "name": "纽约时报 NYT (世界新闻)",
-        "url": "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
-        # 优势：全球最具影响力的报纸之一，事实核查严谨
-    },
-    {
-        "name": "华盛顿邮报 WP (世界新闻)",
-        "url": "https://feeds.washingtonpost.com/rss/world",
-        # 优势：离白宫最近的媒体，对美国外交政策、军事情报报道独道
-    },
-    {
         "name": "华尔街日报 WSJ (国际新闻)",
         "url": "https://feeds.a.dj.com/rss/RSSWorldNews.xml",
-        # 优势：兼顾地缘政治与宏观经济，对制裁、能源危机报道精准
-    },
-    {
-        "name": "英国卫报 The Guardian (国际)",
-        "url": "https://www.theguardian.com/world/rss",
-        # 优势：免费且高质量的英国左翼大报，对气候、人权、中东有大量报道
+        # 优势：社论版面偏保守派，兼顾地缘政治与宏观经济，对制裁、能源危机报道精准
     },
     {
         "name": "南华早报 SCMP (亚洲与世界)",
@@ -74,10 +50,6 @@ NEWS_SOURCES = [
         "url": "https://rss.dw.com/rdf/rss-chi-all",
     },
     {
-        "name": "英国广播公司 BBC (国际)",
-        "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
-    },
-    {
         "name": "半岛电视台 Al Jazeera",
         "url": "https://www.aljazeera.com/xml/rss/all.xml",
     },
@@ -86,13 +58,31 @@ NEWS_SOURCES = [
         "url": "https://www.france24.com/en/rss",
     },
     {
-        "name": "美国国家公共电台 NPR",
-        "url": "https://feeds.npr.org/1004/rss.xml",
-    },
-    {
         "name": "国际通讯社聚合 Google News",
         "url": "https://news.google.com/rss/headlines/section/topic/WORLD",
     },
+    
+    # ------------------ 新增的右翼/保守派媒体 (Right-leaning Media) ------------------
+    {
+        "name": "福克斯新闻 Fox News (世界新闻)",
+        "url": "https://moxie.foxnews.com/google-publisher/world.xml",
+        # 优势：美国收视率最高的保守派电视新闻网，深受特朗普及其支持者青睐
+    },
+    {
+        "name": "纽约邮报 New York Post (新闻)",
+        "url": "https://nypost.com/world/feed/",
+        # 优势：默多克新闻集团旗下的知名保守派小报，行文风格辛辣，曾多次独家爆料民主党争议事件
+    },
+    {
+        "name": "华盛顿时报 The Washington Times (世界新闻)",
+        "url": "https://www.washingtontimes.com/rss/headlines/news/world/",
+        # 优势：位于华盛顿特区的知名保守派大报，政治倾向与华盛顿邮报截然相反，提供强烈的右派政策视角
+    },
+    {
+        "name": "Newsmax (全球新闻)",
+        "url": "https://www.newsmax.com/rss/Newsfront/16/",
+        # 优势：近年崛起的强硬保守派媒体，在MAGA（让美国再次伟大）选民群体中拥有极高影响力
+    }
 ]
 
 VOICE = "zh-CN-YunyangNeural"  # 微软 Edge TTS 推荐新闻男声：云杨
