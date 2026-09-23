@@ -71,3 +71,11 @@ jobs:
           git clean -fd || true
           git pull --rebase origin main
           git push origin main
+
+      - name: Delete older releases
+        uses: dev-drprasad/delete-older-releases@v0.3.3
+        with:
+          keep_latest: 10
+          delete_tags: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
