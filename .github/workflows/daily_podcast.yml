@@ -73,3 +73,12 @@ jobs:
           git clean -fd || true
           git pull --rebase origin main
           git push origin main
+
+      # --- 新增的自动清理旧 Release 步骤 ---
+      - name: Delete older releases
+        uses: dev-drprasad/delete-older-releases@v0.3.3
+        with:
+          keep_latest: 10 # 建议保留最近的 10 个，可修改
+          delete_tags: true # 同时清理废弃的 tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
