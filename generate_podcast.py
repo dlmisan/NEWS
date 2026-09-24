@@ -55,7 +55,8 @@ NEWS_SOURCES = [
         "name": "国际通讯社聚合 Google News",
         "url": "https://news.google.com/rss/headlines/section/topic/WORLD",
     },
-    # ------------------ 保守派媒体 ------------------
+    
+    # ------------------ 保守派/特色视角媒体 ------------------
     {
         "name": "福克斯新闻 Fox News (世界新闻)",
         "url": "https://moxie.foxnews.com/google-publisher/world.xml",
@@ -72,6 +73,14 @@ NEWS_SOURCES = [
         "name": "Newsmax (全球新闻)",
         "url": "https://www.newsmax.com/rss/Newsfront/16/",
     }
+]
+
+# 模型降级备用梯队：优先使用高性价比主模型，遭遇过载自动顺延
+CANDIDATE_MODELS = [
+    "gemini-3.6-flash",   # 首选：最新版高效率与长文本理解
+    "gemini-2.5-flash",   # 备选 1：成熟且稳定的 Flash 版本
+    "gemini-2.0-flash",   # 备选 2：高并发容灾兜底
+    "gemini-2.5-pro"      # 备选 3：深度推理保底（若 Flash 系列集体遭遇高峰限制）
 ]
 
 VOICE = "zh-CN-YunyangNeural"  # 微软 Edge TTS 推荐新闻男声：云杨
@@ -98,7 +107,6 @@ def fetch_candidate_news(candidate_limit=60):
 
     print(f"正在从 {len(NEWS_SOURCES)} 个媒体源收集候选资讯...")
 
-    # 使用显式超时的 Session 抓取，防止单个 RSS 源卡死整个流水线
     session = requests.Session()
     session.headers.update({"User-Agent": USER_AGENT})
 
@@ -106,7 +114,7 @@ def fetch_candidate_news(candidate_limit=60):
         name = src["name"]
         url = src["url"]
         try:
-            # 连接超时 5 秒，读取内容超时 10 秒
+            # 严格控制单源网络抓取超时，避免死锁
             resp = session.get(url, timeout=(5, 10))
             if resp.status_code != 200:
                 print(f"  - [{name}] 抓取跳过 (HTTP 状态码: {resp.status_code})")
@@ -150,7 +158,7 @@ def fetch_candidate_news(candidate_limit=60):
     return "\n".join(candidates)
 
 
-def rewrite_with_gemini(raw_news, api_key, period_name, max_retries=2):
+def rewrite_with_gemini(raw_news, api_key, period_name):
     print(f"正在生成【{period_name}】客观口播稿...")
     prompt = f"""
 你是一位严谨、专业的国家级新闻广播电台播音员。
@@ -180,52 +188,63 @@ def rewrite_with_gemini(raw_news, api_key, period_name, max_retries=2):
 原始新闻素材如下：
 {raw_news}
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
+    headers = {"Content-Type": "application/json"}
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    
-    # 单次调用超时设置为 90 秒，配合 2 次重试，总耗时控制在 3-4 分钟内
-    timeout_seconds = 90
+    timeout_seconds = 75
 
-    for attempt in range(max_retries + 1):
-        try:
-            print(f"正在向 Gemini 发起生成请求 (第 {attempt + 1}/{max_retries + 1} 次)...")
-            response = requests.post(
-                url, 
-                json=payload, 
-                headers={"Content-Type": "application/json"}, 
-                timeout=timeout_seconds
-            )
-            data = response.json()
-            
-            # 1. 成功情况
-            if "candidates" in data and len(data["candidates"]) > 0:
-                return data["candidates"][0]["content"]["parts"][0]["text"]
-                
-            # 2. API 报错（如服务不可用、超频等）
-            if "error" in data:
-                error_msg = data['error'].get('message', '未知 API 错误')
-                print(f"⚠️ 第 {attempt + 1} 次请求失败: API 报错 - {error_msg}")
-            else:
-                print(f"⚠️ 第 {attempt + 1} 次请求失败: 返回格式异常 - {data}")
-                
-        except requests.exceptions.Timeout:
-            print(f"⚠️ 第 {attempt + 1} 次请求超时 ({timeout_seconds}s)")
-        except Exception as e:
-            print(f"⚠️ 第 {attempt + 1} 次请求发生网络异常: {e}")
-            
-        # 重试退避等待
-        if attempt < max_retries:
-            wait_time = (attempt + 1) * 10
-            print(f"⏳ 等待 {wait_time} 秒后进行下一次重试...\n")
-            time.sleep(wait_time)
-            
-    raise RuntimeError(f"Gemini API 响应异常或网络超时，已重试 {max_retries} 次仍未成功。")
+    # 循环尝试备选模型梯队
+    for model_name in CANDIDATE_MODELS:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        print(f"\n🔄 尝试调用模型 [{model_name}] ...")
+
+        for attempt in range(2):  # 每个模型最多尝试 2 次
+            try:
+                print(f"  - 发起请求 (第 {attempt + 1}/2 次)...")
+                response = requests.post(
+                    url,
+                    json=payload,
+                    headers=headers,
+                    timeout=timeout_seconds
+                )
+                data = response.json()
+
+                # 1. 成功获取结果
+                if "candidates" in data and len(data["candidates"]) > 0:
+                    text_parts = data["candidates"][0]["content"]["parts"]
+                    if text_parts and "text" in text_parts[0]:
+                        print(f"✅ 模型 [{model_name}] 成功生成播报稿！")
+                        return text_parts[0]["text"]
+
+                # 2. API 报错处理
+                if "error" in data:
+                    err_msg = data["error"].get("message", "未知错误")
+                    err_code = str(data["error"].get("code", ""))
+                    print(f"  ⚠️ [{model_name}] 报错: {err_msg}")
+
+                    # 检测到集群负载高或 503，直接跳出当前模型，无缝进入下一个备选模型
+                    if "high demand" in err_msg.lower() or "503" in err_code or "resource has been exhausted" in err_msg.lower():
+                        print(f"  ⚡ 检测到 [{model_name}] 算力紧张/配额过载，立即切换至备选模型...")
+                        break
+                else:
+                    print(f"  ⚠️ 返回格式异常: {data}")
+
+            except requests.exceptions.Timeout:
+                print(f"  ⚠️ 请求超时 ({timeout_seconds}s)")
+            except Exception as e:
+                print(f"  ⚠️ 网络异常: {e}")
+
+            # 若需要同模型重试，等待 8 秒
+            if attempt == 0:
+                print("  ⏳ 等待 8 秒后重试该模型...")
+                time.sleep(8)
+
+    raise RuntimeError("所有备选 Gemini 模型均处于拥堵或不可用状态，请检查网络或稍后重新触发。")
 
 
 async def text_to_speech(text, output_file):
     print(f"正在合成音频: {output_file} ...")
     communicate = edge_tts.Communicate(text, VOICE)
-    # 为音频合成任务加上 240 秒强制超时，防止 WebSocket 假死无限挂起
+    # 为音频合成加上 240 秒保护，防止 WebSocket 假死
     await asyncio.wait_for(communicate.save(output_file), timeout=240)
 
 
@@ -284,19 +303,19 @@ async def main():
     tag = f"episode-{time_str}"
     audio_filename = f"news-{time_str}.mp3"
 
-    # 1. 抓取候选池（有超时保护）
+    # 1. 抓取候选池（带超时）
     raw_news = fetch_candidate_news(candidate_limit=60)
     if not raw_news.strip():
         print("未抓取到有效新闻素材，跳过本次生成。")
         return
 
-    # 2. 改写为客观事实播报稿（有 90s 超时和自动重试）
+    # 2. 改写为客观事实播报稿（多模型降级轮询）
     broadcast_script = rewrite_with_gemini(raw_news, api_key, period_name)
 
-    # 3. 合成音频（有 240s 异步超时保护）
+    # 3. 合成音频（带 240s 异步超时保护）
     await text_to_speech(broadcast_script, audio_filename)
 
-    # 只有在音频真正生成成功后，再写入 tag 和文件名，防止下游 Release 读到空文件
+    # 确保音频确实生成成功后，再写入中间标记文件
     with open("current_tag.txt", "w") as f:
         f.write(tag)
     with open("current_audio_filename.txt", "w") as f:
