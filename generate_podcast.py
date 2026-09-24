@@ -4,7 +4,7 @@ import email.utils
 import json
 import os
 import re
-import time 
+import time
 import feedparser
 import requests
 import edge_tts
@@ -14,32 +14,26 @@ NEWS_SOURCES = [
     {
         "name": "法国广播电台 RFI (中文)",
         "url": "https://www.rfi.fr/cn/rss",
-        # 优势：欧洲视角，对俄乌战争和欧洲地缘政治报道非常及时
     },
     {
         "name": "华尔街日报 WSJ (国际新闻)",
         "url": "https://feeds.a.dj.com/rss/RSSWorldNews.xml",
-        # 优势：社论版面偏保守派，兼顾地缘政治与宏观经济，对制裁、能源危机报道精准
     },
     {
         "name": "南华早报 SCMP (亚洲与世界)",
         "url": "https://www.scmp.com/rss/2/feed",
-        # 优势：立足香港，全英文播报亚洲与全球宏观动态
     },
     {
         "name": "印度时报 Times of India (世界频道)",
         "url": "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
-        # 优势：南亚最大的英文媒体，提供“全球南方”国家的独特视角
     },
     {
         "name": "TechCrunch (科技创投)",
         "url": "https://techcrunch.com/feed/",
-        # 优势：全球科技圈第一手资讯，涉及马斯克、OpenAI等AI巨头动态必看
     },
     {
         "name": "雅虎财经 Yahoo Finance",
         "url": "https://finance.yahoo.com/news/rss",
-        # 优势：聚合了彭博社、路透社的大量财经和政商跨界新闻
     },
     {
         "name": "BBC 中文网",
@@ -61,27 +55,22 @@ NEWS_SOURCES = [
         "name": "国际通讯社聚合 Google News",
         "url": "https://news.google.com/rss/headlines/section/topic/WORLD",
     },
-    
-    # ------------------ 新增的右翼/保守派媒体 (Right-leaning Media) ------------------
+    # ------------------ 保守派媒体 ------------------
     {
         "name": "福克斯新闻 Fox News (世界新闻)",
         "url": "https://moxie.foxnews.com/google-publisher/world.xml",
-        # 优势：美国收视率最高的保守派电视新闻网，深受特朗普及其支持者青睐
     },
     {
         "name": "纽约邮报 New York Post (新闻)",
         "url": "https://nypost.com/world/feed/",
-        # 优势：默多克新闻集团旗下的知名保守派小报，行文风格辛辣，曾多次独家爆料民主党争议事件
     },
     {
         "name": "华盛顿时报 The Washington Times (世界新闻)",
         "url": "https://www.washingtontimes.com/rss/headlines/news/world/",
-        # 优势：位于华盛顿特区的知名保守派大报，政治倾向与华盛顿邮报截然相反，提供强烈的右派政策视角
     },
     {
         "name": "Newsmax (全球新闻)",
         "url": "https://www.newsmax.com/rss/Newsfront/16/",
-        # 优势：近年崛起的强硬保守派媒体，在MAGA（让美国再次伟大）选民群体中拥有极高影响力
     }
 ]
 
@@ -103,23 +92,32 @@ def save_history(history_set):
         f.write("\n".join(recent_history))
 
 
-# 扩大抓取池到 60 条，确保筛选 30 条独立事件时素材充足
 def fetch_candidate_news(candidate_limit=60):
     history = load_history()
     source_buckets = {}
 
     print(f"正在从 {len(NEWS_SOURCES)} 个媒体源收集候选资讯...")
 
+    # 使用显式超时的 Session 抓取，防止单个 RSS 源卡死整个流水线
+    session = requests.Session()
+    session.headers.update({"User-Agent": USER_AGENT})
+
     for src in NEWS_SOURCES:
         name = src["name"]
         url = src["url"]
         try:
-            # 【修复1】强制传入 User-Agent，伪装成浏览器，防止被直接 403 拦截
-            feed = feedparser.parse(url, agent=USER_AGENT)
+            # 连接超时 5 秒，读取内容超时 10 秒
+            resp = session.get(url, timeout=(5, 10))
+            if resp.status_code != 200:
+                print(f"  - [{name}] 抓取跳过 (HTTP 状态码: {resp.status_code})")
+                source_buckets[name] = []
+                continue
+
+            feed = feedparser.parse(resp.content)
             valid_entries = []
             for entry in feed.entries:
-                entry_id = getattr(entry, "id", entry.link)
-                if entry_id not in history:
+                entry_id = getattr(entry, "id", getattr(entry, "link", None))
+                if entry_id and entry_id not in history:
                     valid_entries.append((entry, entry_id, name))
             source_buckets[name] = valid_entries
             print(f"  - [{name}] 抓取到 {len(valid_entries)} 条候选资讯")
@@ -136,7 +134,7 @@ def fetch_candidate_news(candidate_limit=60):
             if i < len(entries):
                 entry, entry_id, media_name = entries[i]
                 if entry_id not in new_ids:
-                    title = entry.title
+                    title = getattr(entry, "title", "")
                     summary = entry.summary if hasattr(entry, "summary") else ""
                     candidates.append(f"【来源：{media_name}】 标题: {title}\n摘要: {summary}\n")
                     new_ids.add(entry_id)
@@ -152,7 +150,7 @@ def fetch_candidate_news(candidate_limit=60):
     return "\n".join(candidates)
 
 
-def rewrite_with_gemini(raw_news, api_key, period_name, max_retries=3):
+def rewrite_with_gemini(raw_news, api_key, period_name, max_retries=2):
     print(f"正在生成【{period_name}】客观口播稿...")
     prompt = f"""
 你是一位严谨、专业的国家级新闻广播电台播音员。
@@ -182,44 +180,53 @@ def rewrite_with_gemini(raw_news, api_key, period_name, max_retries=3):
 原始新闻素材如下：
 {raw_news}
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    # 【新增】自动重试循环
-    for attempt in range(max_retries):
+    # 单次调用超时设置为 90 秒，配合 2 次重试，总耗时控制在 3-4 分钟内
+    timeout_seconds = 90
+
+    for attempt in range(max_retries + 1):
         try:
-            # 保持 timeout=360，防止无响应挂起
-            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=360)
+            print(f"正在向 Gemini 发起生成请求 (第 {attempt + 1}/{max_retries + 1} 次)...")
+            response = requests.post(
+                url, 
+                json=payload, 
+                headers={"Content-Type": "application/json"}, 
+                timeout=timeout_seconds
+            )
             data = response.json()
             
-            # 1. 成功情况：如果顺利拿到 candidates，直接返回结果
-            if "candidates" in data:
+            # 1. 成功情况
+            if "candidates" in data and len(data["candidates"]) > 0:
                 return data["candidates"][0]["content"]["parts"][0]["text"]
                 
-            # 2. 失败情况A：API 返回了内容，但提示报错（如 503 拥堵）
+            # 2. API 报错（如服务不可用、超频等）
             if "error" in data:
                 error_msg = data['error'].get('message', '未知 API 错误')
                 print(f"⚠️ 第 {attempt + 1} 次请求失败: API 报错 - {error_msg}")
             else:
                 print(f"⚠️ 第 {attempt + 1} 次请求失败: 返回格式异常 - {data}")
                 
-        # 3. 失败情况B：网络连接问题或超时抛出异常
+        except requests.exceptions.Timeout:
+            print(f"⚠️ 第 {attempt + 1} 次请求超时 ({timeout_seconds}s)")
         except Exception as e:
             print(f"⚠️ 第 {attempt + 1} 次请求发生网络异常: {e}")
             
-        # 如果还没到最后一次尝试，就等待 30 秒再试
-        if attempt < max_retries - 1:
-            print(f"⏳ 等待 30 秒后自动进行第 {attempt + 2} 次重试...\n")
-            time.sleep(30)
+        # 重试退避等待
+        if attempt < max_retries:
+            wait_time = (attempt + 1) * 10
+            print(f"⏳ 等待 {wait_time} 秒后进行下一次重试...\n")
+            time.sleep(wait_time)
             
-    # 如果 3 次全失败了，就抛出致命错误结束程序
-    raise RuntimeError(f"Gemini API 严重拥堵或异常，{max_retries} 次重试后依然失败，请稍后手动运行。")
+    raise RuntimeError(f"Gemini API 响应异常或网络超时，已重试 {max_retries} 次仍未成功。")
 
 
 async def text_to_speech(text, output_file):
     print(f"正在合成音频: {output_file} ...")
     communicate = edge_tts.Communicate(text, VOICE)
-    await communicate.save(output_file)
+    # 为音频合成任务加上 240 秒强制超时，防止 WebSocket 假死无限挂起
+    await asyncio.wait_for(communicate.save(output_file), timeout=240)
 
 
 def update_podcast_feed(audio_url, audio_size, episode_title):
@@ -264,32 +271,36 @@ async def main():
     api_key = os.getenv("GEMINI_API_KEY")
     repo = os.getenv("GITHUB_REPOSITORY")
 
+    if not api_key:
+        raise ValueError("缺少环境变量 GEMINI_API_KEY")
+
     bj_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=8)
     time_str = bj_time.strftime("%Y%m%d-%H%M")
     date_display = bj_time.strftime("%Y-%m-%d")
 
     hour = bj_time.hour
-    if hour < 12:
-        period_name = "早间新闻"
-    else:
-        period_name = "晚间新闻"
+    period_name = "早间新闻" if hour < 12 else "晚间新闻"
     episode_title = f"{period_name} ({date_display})"
     tag = f"episode-{time_str}"
     audio_filename = f"news-{time_str}.mp3"
 
+    # 1. 抓取候选池（有超时保护）
+    raw_news = fetch_candidate_news(candidate_limit=60)
+    if not raw_news.strip():
+        print("未抓取到有效新闻素材，跳过本次生成。")
+        return
+
+    # 2. 改写为客观事实播报稿（有 90s 超时和自动重试）
+    broadcast_script = rewrite_with_gemini(raw_news, api_key, period_name)
+
+    # 3. 合成音频（有 240s 异步超时保护）
+    await text_to_speech(broadcast_script, audio_filename)
+
+    # 只有在音频真正生成成功后，再写入 tag 和文件名，防止下游 Release 读到空文件
     with open("current_tag.txt", "w") as f:
         f.write(tag)
     with open("current_audio_filename.txt", "w") as f:
         f.write(audio_filename)
-
-    # 1. 抓取候选池（扩大至 60 条候选）
-    raw_news = fetch_candidate_news(candidate_limit=60)
-
-    # 2. 改写为 30 条纯客观事实播报稿（带自动重试机制）
-    broadcast_script = rewrite_with_gemini(raw_news, api_key, period_name)
-
-    # 3. 合成音频
-    await text_to_speech(broadcast_script, audio_filename)
 
     # 4. 发布单集
     file_size = os.path.getsize(audio_filename)
