@@ -22,23 +22,29 @@ permissions:
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
+    # 核心兜底：整个 Job 最大运行 15 分钟，防止触发默认的 6 小时扣费
+    timeout-minutes: 10
 
     steps:
       - name: Checkout Repository
+        timeout-minutes: 2
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Python
+        timeout-minutes: 2
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install Dependencies
+        timeout-minutes: 3
         run: |
-          pip install -r requirements.txt
+          pip install --timeout 30 -r requirements.txt
 
       - name: Generate News Audio & Podcast XML
+        timeout-minutes: 8 # 核心业务（API 调用、TTS 与音频渲染），预留充裕时间但避免死锁
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -46,6 +52,7 @@ jobs:
           python generate_podcast.py
 
       - name: Create GitHub Release and Upload Audio
+        timeout-minutes: 5 # 防止大音频上传过程中网络卡死
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -57,6 +64,7 @@ jobs:
             --notes "由 GitHub Actions 自动化生成"
 
       - name: Deploy RSS to GitHub Pages
+        timeout-minutes: 3
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -64,6 +72,10 @@ jobs:
           keep_files: true
 
       - name: Save News Deduplication History
+        timeout-minutes: 3
+        env:
+          # 禁用终端交互，缺少权限时直接报错退出，禁止等待按键输入
+          GIT_TERMINAL_PROMPT: 0
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -74,11 +86,11 @@ jobs:
           git pull --rebase origin main
           git push origin main
 
-      # --- 新增的自动清理旧 Release 步骤 ---
       - name: Delete older releases
+        timeout-minutes: 3
         uses: dev-drprasad/delete-older-releases@v0.3.3
         with:
-          keep_latest: 10 # 建议保留最近的 10 个，可修改
-          delete_tags: true # 同时清理废弃的 tag
+          keep_latest: 10 # 保留最近 10 个发布版本
+          delete_tags: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
