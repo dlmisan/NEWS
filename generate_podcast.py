@@ -77,10 +77,10 @@ NEWS_SOURCES = [
 
 # 模型降级备用梯队：优先使用高性价比主模型，遭遇过载自动顺延
 CANDIDATE_MODELS = [
-    "gemini-3.6-flash",   # 首选：最新版高效率与长文本理解
-    "gemini-2.5-flash",   # 备选 1：成熟且稳定的 Flash 版本
-    "gemini-2.0-flash",   # 备选 2：高并发容灾兜底
-    "gemini-2.5-pro"      # 备选 3：深度推理保底（若 Flash 系列集体遭遇高峰限制）
+    "gemini-3.6-flash",         # 主力：性能与速度平衡
+    "gemini-3.5-flash",         # 备选1：官方标准版主力
+    "gemini-3.5-flash-lite",    # 备选2：低延迟轻量级，算力充足不易拥堵
+    "gemini-3.1-pro-preview"    # 备选3：深度理解版，保底使用
 ]
 
 VOICE = "zh-CN-YunyangNeural"  # 微软 Edge TTS 推荐新闻男声：云杨
