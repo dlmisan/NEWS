@@ -180,7 +180,7 @@ def rewrite_with_gemini(raw_news, api_key, period_name, max_retries=2):
 原始新闻素材如下：
 {raw_news}
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={api_key}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
     # 单次调用超时设置为 90 秒，配合 2 次重试，总耗时控制在 3-4 分钟内
