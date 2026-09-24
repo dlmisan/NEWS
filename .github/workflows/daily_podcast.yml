@@ -2,10 +2,10 @@ name: Daily Podcast Pipeline
 
 on:
   schedule:
-    # 每天北京时间早 04:45 (UTC 20:45)
-    - cron: '45 20 * * *'
-    # 每天北京时间晚 17:15 (UTC 09:15)
-    - cron: '15 9 * * *'
+    # 每天北京时间早 03:45 (UTC 19:45)
+    - cron: '45 19 * * *'
+    # 每天北京时间晚 16:15 (UTC 08:15)
+    - cron: '15 8 * * *'
   # 支持随时手动点击运行
   workflow_dispatch:
 
