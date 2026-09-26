@@ -6,6 +6,13 @@
     <language>zh-cn</language>
     <description>每日自动汇总全球热点 30 条要闻，AI 严谨播报。</description>
     <item>
+      <title>晚间新闻 (2026-09-26)</title>
+      <description>今日聚合全球权威要闻 30 条客观播报。</description>
+      <pubDate>Sat, 26 Sep 2026 13:05:30 +0000</pubDate>
+      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20260926-2103/news-20260926-2103.mp3" length="5445072" type="audio/mpeg"/>
+      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20260926-2103/news-20260926-2103.mp3</guid>
+    </item>
+<item>
       <title>早间新闻 (2026-09-26)</title>
       <description>今日聚合全球权威要闻 30 条客观播报。</description>
       <pubDate>Fri, 25 Sep 2026 22:50:17 +0000</pubDate>
@@ -67,13 +74,6 @@
       <pubDate>Sun, 20 Sep 2026 22:45:35 +0000</pubDate>
       <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20260921-0642/news-20260921-0642.mp3" length="4903056" type="audio/mpeg"/>
       <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20260921-0642/news-20260921-0642.mp3</guid>
-    </item>
-<item>
-      <title>【奇闻娱乐】全球奇闻娱乐与体育速递 (2026-09-21)</title>
-      <description>今日全球奇闻趣事、影视文娱与体坛焦点 20-25 条客观深入播报。</description>
-      <pubDate>Sun, 20 Sep 2026 21:36:20 +0000</pubDate>
-      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/ent-episode-20260921-0533/ent-20260921-0533.mp3" length="5318928" type="audio/mpeg"/>
-      <guid>https://github.com/dlmisan/NEWS/releases/download/ent-episode-20260921-0533/ent-20260921-0533.mp3</guid>
     </item>
   </channel>
 </rss>
