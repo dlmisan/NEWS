@@ -6,6 +6,13 @@
     <language>zh-cn</language>
     <description>每日自动汇总全球热点 30 条要闻，AI 严谨播报。</description>
     <item>
+      <title>晚间新闻 (2026-10-03)</title>
+      <description>今日聚合全球权威要闻 30 条客观播报。</description>
+      <pubDate>Sat, 03 Oct 2026 13:25:58 +0000</pubDate>
+      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20261003-2121/news-20261003-2121.mp3" length="2579184" type="audio/mpeg"/>
+      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20261003-2121/news-20261003-2121.mp3</guid>
+    </item>
+<item>
       <title>早间新闻 (2026-10-03)</title>
       <description>今日聚合全球权威要闻 30 条客观播报。</description>
       <pubDate>Fri, 02 Oct 2026 23:19:35 +0000</pubDate>
@@ -67,13 +74,6 @@
       <pubDate>Mon, 28 Sep 2026 23:59:54 +0000</pubDate>
       <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20260929-0756/news-20260929-0756.mp3" length="3038832" type="audio/mpeg"/>
       <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20260929-0756/news-20260929-0756.mp3</guid>
-    </item>
-<item>
-      <title>晚间新闻 (2026-09-28)</title>
-      <description>今日聚合全球权威要闻 30 条客观播报。</description>
-      <pubDate>Mon, 28 Sep 2026 10:36:26 +0000</pubDate>
-      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20260928-1833/news-20260928-1833.mp3" length="2996784" type="audio/mpeg"/>
-      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20260928-1833/news-20260928-1833.mp3</guid>
     </item>
   </channel>
 </rss>
