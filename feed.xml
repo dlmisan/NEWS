@@ -6,6 +6,13 @@
     <language>zh-cn</language>
     <description>每日自动汇总全球热点 30 条要闻，AI 严谨播报。</description>
     <item>
+      <title>早间新闻 (2026-11-16)</title>
+      <description>今日聚合全球权威要闻 30 条客观播报。</description>
+      <pubDate>Sun, 15 Nov 2026 23:35:05 +0000</pubDate>
+      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20261116-0730/news-20261116-0730.mp3" length="5739984" type="audio/mpeg"/>
+      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20261116-0730/news-20261116-0730.mp3</guid>
+    </item>
+<item>
       <title>晚间新闻 (2026-11-15)</title>
       <description>今日聚合全球权威要闻 30 条客观播报。</description>
       <pubDate>Sun, 15 Nov 2026 15:41:34 +0000</pubDate>
@@ -67,13 +74,6 @@
       <pubDate>Tue, 10 Nov 2026 16:25:39 +0000</pubDate>
       <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20261111-0024/news-20261111-0024.mp3" length="3085488" type="audio/mpeg"/>
       <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20261111-0024/news-20261111-0024.mp3</guid>
-    </item>
-<item>
-      <title>早间新闻 (2026-11-10)</title>
-      <description>今日聚合全球权威要闻 30 条客观播报。</description>
-      <pubDate>Tue, 10 Nov 2026 02:24:25 +0000</pubDate>
-      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20261110-1023/news-20261110-1023.mp3" length="541440" type="audio/mpeg"/>
-      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20261110-1023/news-20261110-1023.mp3</guid>
     </item>
   </channel>
 </rss>
