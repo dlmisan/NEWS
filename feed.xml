@@ -8,6 +8,13 @@
     <item>
       <title>早间新闻 (2026-11-23)</title>
       <description>今日聚合全球权威要闻 30 条客观播报。</description>
+      <pubDate>Mon, 23 Nov 2026 00:30:55 +0000</pubDate>
+      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20261123-0828/news-20261123-0828.mp3" length="5285520" type="audio/mpeg"/>
+      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20261123-0828/news-20261123-0828.mp3</guid>
+    </item>
+<item>
+      <title>早间新闻 (2026-11-23)</title>
+      <description>今日聚合全球权威要闻 30 条客观播报。</description>
       <pubDate>Sun, 22 Nov 2026 16:16:44 +0000</pubDate>
       <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20261123-0014/news-20261123-0014.mp3" length="2535120" type="audio/mpeg"/>
       <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20261123-0014/news-20261123-0014.mp3</guid>
@@ -67,13 +74,6 @@
       <pubDate>Wed, 18 Nov 2026 01:54:22 +0000</pubDate>
       <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20261118-0952/news-20261118-0952.mp3" length="3056256" type="audio/mpeg"/>
       <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20261118-0952/news-20261118-0952.mp3</guid>
-    </item>
-<item>
-      <title>早间新闻 (2026-11-18)</title>
-      <description>今日聚合全球权威要闻 30 条客观播报。</description>
-      <pubDate>Tue, 17 Nov 2026 17:40:14 +0000</pubDate>
-      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20261118-0136/news-20261118-0136.mp3" length="5221872" type="audio/mpeg"/>
-      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20261118-0136/news-20261118-0136.mp3</guid>
     </item>
   </channel>
 </rss>
