@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Daily Global News Briefing</title>
+    <link>https://github.com</link>
+    <language>en-us</language>
+    <description>Daily objective audio briefing of 30 major international news stories.</description>
+    <item>
+      <title>Morning Briefing (2026-11-26)</title>
+      <description>Objective audio briefing covering 30 major global headlines.</description>
+      <pubDate>Wed, 25 Nov 2026 23:47:37 +0000</pubDate>
+      <enclosure url="https://github.com/dlmisan/NEWS/releases/download/episode-20261126-0738/news-en-20261126-0738.mp3" length="4338432" type="audio/mpeg"/>
+      <guid>https://github.com/dlmisan/NEWS/releases/download/episode-20261126-0738/news-en-20261126-0738.mp3</guid>
+    </item>
+  </channel>
+</rss>
