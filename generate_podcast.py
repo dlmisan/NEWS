@@ -79,8 +79,9 @@ NEWS_SOURCES = [
 CANDIDATE_MODELS = [
     "gemini-3.6-flash",         # 主力：性能与速度平衡
     "gemini-3.5-flash",         # 备选1：官方标准版主力
-    "gemini-3.5-flash-lite",    # 备选2：低延迟轻量级，算力充足不易拥堵
-    "gemini-3.1-pro-preview"    # 备选3：深度理解版，保底使用
+    "gemini-3.5-flash-lite",    # 备选2：低延迟轻量级
+    "gemini-2.5-flash",         # 备选3：成熟稳定版（独立算力池，高峰期不易拥堵）
+    "gemini-2.5-flash-lite",    # 备选4：轻量级稳定兜底
 ]
 
 VOICE_ZH = "zh-CN-YunyangNeural"  # 微软 Edge TTS 中文新闻男声：云杨
@@ -160,19 +161,27 @@ def fetch_candidate_news(candidate_limit=60):
 
 
 def call_gemini(prompt, api_key, task_name):
-    """通用 Gemini 调用器：完整保留四级模型降级与重试保护机制"""
+    """通用 Gemini 调用器：支持无配额自动剔除 + 跨轮退避重试"""
     print(f"正在执行【{task_name}】...")
     headers = {"Content-Type": "application/json"}
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     timeout_seconds = 75
 
-    for model_name in CANDIDATE_MODELS:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-        print(f"\n🔄 [{task_name}] 尝试调用模型 [{model_name}] ...")
+    max_rounds = 3  # 最多进行 3 轮全梯队轮询，应对临时算力高峰
+    disabled_models = set()
 
-        for attempt in range(2):  # 每个模型最多尝试 2 次
+    for round_idx in range(max_rounds):
+        active_models = [m for m in CANDIDATE_MODELS if m not in disabled_models]
+        if not active_models:
+            break
+
+        print(f"\n📡 【{task_name}】开始第 {round_idx + 1}/{max_rounds} 轮模型轮询...")
+
+        for model_name in active_models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+            print(f"🔄 尝试调用模型 [{model_name}] ...")
+
             try:
-                print(f"  - 发起请求 (第 {attempt + 1}/2 次)...")
                 response = requests.post(
                     url,
                     json=payload,
@@ -192,26 +201,40 @@ def call_gemini(prompt, api_key, task_name):
                 if "error" in data:
                     err_msg = data["error"].get("message", "未知错误")
                     err_code = str(data["error"].get("code", ""))
-                    print(f"  ⚠️ [{model_name}] 报错: {err_msg}")
+                    print(f"  ⚠️ [{model_name}] 报错 ({err_code}): {err_msg[:160]}")
 
-                    # 检测到集群负载高或 503，直接跳出当前模型，无缝进入下一个备选模型
-                    if "high demand" in err_msg.lower() or "503" in err_code or "resource has been exhausted" in err_msg.lower():
-                        print(f"  ⚡ 检测到 [{model_name}] 算力紧张/配额过载，立即切换至备选模型...")
-                        break
+                    # 情况 A：当前套餐对该模型配额为 0 或模型不存在 -> 永久剔除，不再浪费时间
+                    if "limit: 0" in err_msg.lower() or "not found" in err_msg.lower() or err_code == "404":
+                        print(f"  ⛔ [{model_name}] 免费套餐无配额或不可用，已移出备选池。")
+                        disabled_models.add(model_name)
+                        continue
+
+                    # 情况 B：临时算力紧张 (503 high demand) 或速率限制 (429) -> 稍作停顿后切下一个模型
+                    if (
+                        "high demand" in err_msg.lower()
+                        or "503" in err_code
+                        or "429" in err_code
+                        or "resource has been exhausted" in err_msg.lower()
+                    ):
+                        print(f"  ⚡ [{model_name}] 暂时拥堵，2 秒后切换至下一个备选模型...")
+                        time.sleep(2)
+                        continue
                 else:
-                    print(f"  ⚠️ 返回格式异常: {data}")
+                    print(f"  ⚠️ 返回格式异常: {str(data)[:160]}")
 
             except requests.exceptions.Timeout:
-                print(f"  ⚠️ 请求超时 ({timeout_seconds}s)")
+                print(f"  ⚠️ [{model_name}] 请求超时 ({timeout_seconds}s)，切换下一个模型...")
             except Exception as e:
-                print(f"  ⚠️ 网络异常: {e}")
+                print(f"  ⚠️ [{model_name}] 网络异常: {e}")
 
-            # 若需要同模型重试，等待 8 秒
-            if attempt == 0:
-                print("  ⏳ 等待 8 秒后重试该模型...")
-                time.sleep(8)
+        # 若本轮所有可用模型均未成功，且还有剩余轮次，进行退避等待让集群恢复
+        remaining_models = [m for m in CANDIDATE_MODELS if m not in disabled_models]
+        if round_idx < max_rounds - 1 and remaining_models:
+            wait_seconds = 15 * (round_idx + 1)  # 第1轮结束等15秒，第2轮结束等30秒
+            print(f"\n⏳ 本轮所有可用模型均处于拥堵状态，等待 {wait_seconds} 秒后开启下一轮重试...")
+            time.sleep(wait_seconds)
 
-    raise RuntimeError(f"【{task_name}】所有备选 Gemini 模型均处于拥堵或不可用状态，请检查网络或稍后重新触发。")
+    raise RuntimeError(f"【{task_name}】经过 {max_rounds} 轮轮询后仍无可用 Gemini 模型，请稍后重新触发。")
 
 
 def draft_english_broadcast(raw_news, api_key, period_name_en):
