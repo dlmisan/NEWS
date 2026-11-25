@@ -23,7 +23,7 @@ jobs:
   run-pipeline:
     runs-on: ubuntu-latest
     # 核心兜底：整个 Job 最大运行 15 分钟，防止触发默认的 6 小时扣费
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout Repository
@@ -44,7 +44,7 @@ jobs:
           pip install --timeout 30 -r requirements.txt
 
       - name: Generate News Audio & Podcast XML
-        timeout-minutes: 8 # 核心业务（API 调用、TTS 与音频渲染），预留充裕时间但避免死锁
+        timeout-minutes: 11 # 核心业务（双语 API 调用、并发 TTS 与音频渲染），预留充裕时间但避免死锁
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -57,11 +57,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME=$(cat current_tag.txt)
-          AUDIO_FILE=$(cat current_audio_filename.txt)
+          AUDIO_ZH=$(cat current_audio_zh.txt)
+          AUDIO_EN=$(cat current_audio_en.txt)
           
-          gh release create "$TAG_NAME" "$AUDIO_FILE" \
-            --title "国际要闻播报 ($TAG_NAME)" \
-            --notes "由 GitHub Actions 自动化生成"
+          gh release create "$TAG_NAME" "$AUDIO_ZH" "$AUDIO_EN" \
+            --title "国际要闻播报 / Global News ($TAG_NAME)" \
+            --notes "由 GitHub Actions 自动化生成（含中英文双语版本）"
 
       - name: Deploy RSS to GitHub Pages
         timeout-minutes: 3
@@ -79,8 +80,8 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add history_ids.txt public/feed.xml || true
-          git commit -m "Update news deduplication history and feed" || echo "No changes to commit"
+          git add history_ids.txt public/feed.xml public/feed-en.xml || true
+          git commit -m "Update news deduplication history and bilingual feeds" || echo "No changes to commit"
           git checkout -- . || true
           git clean -fd || true
           git pull --rebase origin main
