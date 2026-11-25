@@ -55,7 +55,7 @@ NEWS_SOURCES = [
         "name": "国际通讯社聚合 Google News",
         "url": "https://news.google.com/rss/headlines/section/topic/WORLD",
     },
-    
+
     # ------------------ 保守派/特色视角媒体 ------------------
     {
         "name": "福克斯新闻 Fox News (世界新闻)",
@@ -83,7 +83,8 @@ CANDIDATE_MODELS = [
     "gemini-3.1-pro-preview"    # 备选3：深度理解版，保底使用
 ]
 
-VOICE = "zh-CN-YunyangNeural"  # 微软 Edge TTS 推荐新闻男声：云杨
+VOICE_ZH = "zh-CN-YunyangNeural"  # 微软 Edge TTS 中文新闻男声：云杨
+VOICE_EN = "en-US-AndrewNeural"   # 微软 Edge TTS 英文新闻男声：Andrew
 HISTORY_FILE = "history_ids.txt"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
@@ -158,44 +159,16 @@ def fetch_candidate_news(candidate_limit=60):
     return "\n".join(candidates)
 
 
-def rewrite_with_gemini(raw_news, api_key, period_name):
-    print(f"正在生成【{period_name}】客观口播稿...")
-    prompt = f"""
-你是一位严谨、专业的国家级新闻广播电台播音员。
-以下是从多家国际权威媒体收集的新闻素材：
-
-【核心任务与要求】：
-1. 筛选 30 至 35 条独立重大要闻：
-   - 仔细比对素材，严禁同一事件分两段播报。
-   - 优先关注并入选以下主题：俄乌战争、美国伊朗局势、以色列战争/中东冲突、特朗普（注意分辨特朗普是现任总统还是前总统）、习近平、马斯克、AI（素材中若有则优先入选；若无此类报道则按其他重大要闻顺延，严禁凭空编造）。
-   - 新闻最后可加入1-2条体育消息。
-   - 内容过滤：拒绝已经被认定的左媒的新闻。
-
-2. 严格保留新闻来源：
-   - 每条新闻不需要交代消息来源，但是需要新闻的日期，不需要年份（比如：10月10日消息）
-
-3. 彻底删除转场套话与时间播报：
-   - 开篇仅作简短问候及播报当日时间（例如：“欢迎收听国际要闻，今天是*月*日。”）。
-   - 严禁使用任何广播转场套话（绝对不要出现“下一条消息”、“另一项国际动态是”、“下面关注”、“与此同时”等过渡词），每条新闻直接以来源和事实展开播报。
-   - 结尾简短致谢收尾（例如：“以上是本次国际要闻播报，感谢收听。”）。
-
-4. 绝对忠实原稿，杜绝主观发挥，但如果新闻原稿字数太少，可以搜索相关新闻以充实内容：
-   - 严禁加入任何未经素材提及的推测、主观分析、形容词或 AI 观点，仅客观复述事实（时间、地点、主体、发生情况与官方表态）。
-   - 纯文本输出：严禁出现 Markdown 标记（如 **、#）、括号、网址或特殊符号。
-
-5. 篇幅：每条新闻保留核心事实，每条尽量保证150字左右，全篇总字数控制在 4000~4500 字左右，确保结构完整，切勿中途截断。
-
-原始新闻素材如下：
-{raw_news}
-"""
+def call_gemini(prompt, api_key, task_name):
+    """通用 Gemini 调用器：完整保留四级模型降级与重试保护机制"""
+    print(f"正在执行【{task_name}】...")
     headers = {"Content-Type": "application/json"}
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     timeout_seconds = 75
 
-    # 循环尝试备选模型梯队
     for model_name in CANDIDATE_MODELS:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-        print(f"\n🔄 尝试调用模型 [{model_name}] ...")
+        print(f"\n🔄 [{task_name}] 尝试调用模型 [{model_name}] ...")
 
         for attempt in range(2):  # 每个模型最多尝试 2 次
             try:
@@ -212,7 +185,7 @@ def rewrite_with_gemini(raw_news, api_key, period_name):
                 if "candidates" in data and len(data["candidates"]) > 0:
                     text_parts = data["candidates"][0]["content"]["parts"]
                     if text_parts and "text" in text_parts[0]:
-                        print(f"✅ 模型 [{model_name}] 成功生成播报稿！")
+                        print(f"✅ 模型 [{model_name}] 成功完成【{task_name}】！")
                         return text_parts[0]["text"]
 
                 # 2. API 报错处理
@@ -238,25 +211,82 @@ def rewrite_with_gemini(raw_news, api_key, period_name):
                 print("  ⏳ 等待 8 秒后重试该模型...")
                 time.sleep(8)
 
-    raise RuntimeError("所有备选 Gemini 模型均处于拥堵或不可用状态，请检查网络或稍后重新触发。")
+    raise RuntimeError(f"【{task_name}】所有备选 Gemini 模型均处于拥堵或不可用状态，请检查网络或稍后重新触发。")
 
 
-async def text_to_speech(text, output_file):
-    print(f"正在合成音频: {output_file} ...")
-    communicate = edge_tts.Communicate(text, VOICE)
+def draft_english_broadcast(raw_news, api_key, period_name_en):
+    """第一步：直接基于原始素材生成英文主稿"""
+    prompt = f"""
+You are a rigorous, professional international radio news anchor (similar to BBC World Service or NPR).
+Below is raw news material collected from multiple international media sources:
+
+【Core Tasks & Requirements】:
+1. Select 30 to 35 independent major news stories:
+   - Carefully cross-check the material; strictly prohibit reporting the same event twice.
+   - Prioritize the following topics if present in the material (do NOT fabricate if absent; fill remaining slots with other major global headlines): Russia-Ukraine war, US-Iran tensions, Israel war / Middle East conflict, Donald Trump (accurately distinguish whether he is current or former president), Xi Jinping, Elon Musk, and Artificial Intelligence (AI).
+   - Include 1 to 2 sports news items at the very end.
+   - Content filtering: Exclude stories from outlets widely recognized as partisan far-left media.
+
+2. Date & Source Formatting:
+   - Do NOT mention the news agency or media source name.
+   - Start each story with the news date (month and day only, no year, e.g., "On November 26," or "Reporting on November 26,").
+
+3. Opening, Closing & Zero Transition Fluff:
+   - Open with a brief greeting and today's date (e.g., "Welcome to the Global News Briefing. Today is [Month] [Day].").
+   - Strictly forbid any broadcast transition clichés between stories (NEVER use "Moving on to our next story", "In other news", "Meanwhile", etc.). Start each item directly with the date and facts.
+   - End with a brief sign-off (e.g., "That concludes this global news briefing. Thank you for listening.").
+
+4. Strict Objectivity & Plain Text Only:
+   - Stick strictly to objective facts (time, location, parties involved, events, and official statements). If a raw news item is overly brief, flesh out established background facts of the event without speculation, subjective adjectives, or AI commentary.
+   - Pure plain text only: strictly NO Markdown formatting (no **, #), NO parentheses/brackets, NO URLs, and NO special symbols.
+
+5. Length Control:
+   - Keep each story around 90 to 110 English words, with a total length of roughly 2,600 to 3,000 English words. Ensure the script is complete and never truncated.
+
+Raw news material:
+{raw_news}
+"""
+    return call_gemini(prompt, api_key, f"{period_name_en}-英文主稿生成")
+
+
+def translate_to_chinese(en_script, api_key, period_name_zh):
+    """第二步：将英文主稿一对一精准译配为中文电台播报稿"""
+    prompt = f"""
+你是一位严谨、专业的国家级新闻广播电台播音员。
+请将以下英文国际新闻广播稿，精准翻译并润色为客观、地道、适合中文新闻电台口播的纯文本稿件。
+
+【核心要求】：
+1. 100% 忠实原文与结构：
+   - 必须与英文原稿的新闻条数、排列顺序、核心事实、数据及官方表态完全一致，严禁增删、合并或凭空发挥。
+2. 符合中文新闻电台播报规范：
+   - 开篇保留简短问候及播报当日时间（例如：“欢迎收听国际要闻，今天是*月*日。”）。
+   - 每条新闻不需要交代消息来源，直接以“*月*日消息，”开头展开事实（不需要年份）。
+   - 严禁使用任何广播转场套话（绝对不要出现“下一条消息”、“另一项国际动态是”、“下面关注”、“与此同时”等过渡词）。
+   - 结尾简短致谢收尾（例如：“以上是本次国际要闻播报，感谢收听。”）。
+3. 纯文本输出：
+   - 严禁出现 Markdown 标记（如 **、#）、括号、网址或特殊符号，确保可直接用于语音合成（TTS）。
+
+待翻译的英文播报稿如下：
+{en_script}
+"""
+    return call_gemini(prompt, api_key, f"{period_name_zh}-中文稿译配")
+
+
+async def text_to_speech(text, output_file, voice):
+    print(f"正在合成音频 [{voice}]: {output_file} ...")
+    communicate = edge_tts.Communicate(text, voice)
     # 为音频合成加上 240 秒保护，防止 WebSocket 假死
     await asyncio.wait_for(communicate.save(output_file), timeout=240)
 
 
-def update_podcast_feed(audio_url, audio_size, episode_title):
-    print("正在增量更新 podcast.xml ...")
+def update_podcast_feed(feed_path, channel_title, language, channel_desc, item_desc, audio_url, audio_size, episode_title):
+    print(f"正在增量更新 {feed_path} ...")
     pub_date = email.utils.format_datetime(datetime.datetime.now(datetime.timezone.utc))
-    feed_path = "public/feed.xml"
-    os.makedirs("public", exist_ok=True)
+    os.makedirs(os.path.dirname(feed_path), exist_ok=True)
 
     new_item = f"""    <item>
       <title>{episode_title}</title>
-      <description>今日聚合全球权威要闻 30 条客观播报。</description>
+      <description>{item_desc}</description>
       <pubDate>{pub_date}</pubDate>
       <enclosure url="{audio_url}" length="{audio_size}" type="audio/mpeg"/>
       <guid>{audio_url}</guid>
@@ -274,10 +304,10 @@ def update_podcast_feed(audio_url, audio_size, episode_title):
     feed_template = f"""<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
   <channel>
-    <title>每日国际要闻速递</title>
+    <title>{channel_title}</title>
     <link>https://github.com</link>
-    <language>zh-cn</language>
-    <description>每日自动汇总全球热点 30 条要闻，AI 严谨播报。</description>
+    <language>{language}</language>
+    <description>{channel_desc}</description>
 {items_block}
   </channel>
 </rss>
@@ -298,10 +328,15 @@ async def main():
     date_display = bj_time.strftime("%Y-%m-%d")
 
     hour = bj_time.hour
-    period_name = "早间新闻" if hour < 12 else "晚间新闻"
-    episode_title = f"{period_name} ({date_display})"
+    period_name_zh = "早间新闻" if hour < 12 else "晚间新闻"
+    period_name_en = "Morning Briefing" if hour < 12 else "Evening Briefing"
+
+    episode_title_zh = f"{period_name_zh} ({date_display})"
+    episode_title_en = f"{period_name_en} ({date_display})"
+
     tag = f"episode-{time_str}"
-    audio_filename = f"news-{time_str}.mp3"
+    audio_zh = f"news-zh-{time_str}.mp3"
+    audio_en = f"news-en-{time_str}.mp3"
 
     # 1. 抓取候选池（带超时）
     raw_news = fetch_candidate_news(candidate_limit=60)
@@ -309,23 +344,55 @@ async def main():
         print("未抓取到有效新闻素材，跳过本次生成。")
         return
 
-    # 2. 改写为客观事实播报稿（多模型降级轮询）
-    broadcast_script = rewrite_with_gemini(raw_news, api_key, period_name)
+    # 2. 先直接生成英文主稿，再一对一译配为中文播报稿（多模型降级轮询）
+    en_script = draft_english_broadcast(raw_news, api_key, period_name_en)
+    zh_script = translate_to_chinese(en_script, api_key, period_name_zh)
 
-    # 3. 合成音频（带 240s 异步超时保护）
-    await text_to_speech(broadcast_script, audio_filename)
+    # 3. 并发合成中英文双语音频（各自带 240s 异步超时保护）
+    await asyncio.gather(
+        text_to_speech(en_script, audio_en, VOICE_EN),
+        text_to_speech(zh_script, audio_zh, VOICE_ZH),
+    )
 
-    # 确保音频确实生成成功后，再写入中间标记文件
-    with open("current_tag.txt", "w") as f:
+    # 4. 校验双音频均成功生成且非空后，再写入中间标记文件供工作流读取
+    size_zh = os.path.getsize(audio_zh)
+    size_en = os.path.getsize(audio_en)
+    if size_zh == 0 or size_en == 0:
+        raise RuntimeError(f"音频文件大小异常 (zh={size_zh}, en={size_en})，终止发布。")
+
+    with open("current_tag.txt", "w", encoding="utf-8") as f:
         f.write(tag)
-    with open("current_audio_filename.txt", "w") as f:
-        f.write(audio_filename)
+    with open("current_audio_zh.txt", "w", encoding="utf-8") as f:
+        f.write(audio_zh)
+    with open("current_audio_en.txt", "w", encoding="utf-8") as f:
+        f.write(audio_en)
 
-    # 4. 发布单集
-    file_size = os.path.getsize(audio_filename)
-    audio_url = f"https://github.com/{repo}/releases/download/{tag}/{audio_filename}"
-    update_podcast_feed(audio_url, file_size, episode_title)
-    print("本期 30 条要闻播客制作完成！")
+    # 5. 发布双语单集至各自独立的 RSS
+    base_release_url = f"https://github.com/{repo}/releases/download/{tag}"
+
+    update_podcast_feed(
+        feed_path="public/feed.xml",
+        channel_title="每日国际要闻速递",
+        language="zh-cn",
+        channel_desc="每日自动汇总全球热点 30 条要闻，AI 严谨播报。",
+        item_desc="今日聚合全球权威要闻 30 条客观播报。",
+        audio_url=f"{base_release_url}/{audio_zh}",
+        audio_size=size_zh,
+        episode_title=episode_title_zh,
+    )
+
+    update_podcast_feed(
+        feed_path="public/feed-en.xml",
+        channel_title="Daily Global News Briefing",
+        language="en-us",
+        channel_desc="Daily objective audio briefing of 30 major international news stories.",
+        item_desc="Objective audio briefing covering 30 major global headlines.",
+        audio_url=f"{base_release_url}/{audio_en}",
+        audio_size=size_en,
+        episode_title=episode_title_en,
+    )
+
+    print("本期中英文双语要闻播客制作完成！")
 
 
 if __name__ == "__main__":
